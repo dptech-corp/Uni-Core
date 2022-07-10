@@ -4,9 +4,6 @@ on:
   push:
     branches:
     - stable
-  pull_request:
-    branches:
-    - stable
 
 jobs:
   docker:
