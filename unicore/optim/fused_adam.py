@@ -53,9 +53,9 @@ class FusedAdam(torch.optim.Optimizer):
                  lr=1e-3, bias_correction=True,
                  betas=(0.9, 0.999), eps=1e-8,
                  weight_decay=0., amsgrad=False):
-        global fused_adam_cuda_v2
+        global unicore_fused_adam
         import importlib
-        fused_adam_cuda_v2 = importlib.import_module("fused_adam_cuda_v2")
+        unicore_fused_adam = importlib.import_module("unicore_fused_adam")
 
         if amsgrad:
             raise RuntimeError("FusedAdam does not support the AMSGrad variant.")
