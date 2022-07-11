@@ -3,7 +3,7 @@ name: Build and Publish Docker
 on:
   push:
     branches:
-    - main
+    - PyTorch-1.12
 
 jobs:
   docker:
@@ -30,4 +30,4 @@ jobs:
         with:
           context: ./docker/
           push: true
-          tags: dptechnology/unicore:pytorch1.11.0-cuda11.3-latest
+          tags: dptechnology/unicore:pytorch1.12.0-cuda11.6
