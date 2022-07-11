@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.3.0-cudnn8-devel-ubuntu20.04
+FROM nvidia/cuda:11.6.2-cudnn8-devel-ubuntu20.04
 
 ENV LANG C.UTF-8
 ENV OFED_VERSION=5.3-1.0.0.1
@@ -103,7 +103,7 @@ ENV TORCH_CUDA_ARCH_LIST "7.0;7.5;8.0"
 RUN conda install -y numpy pyyaml scipy ipython mkl mkl-include ninja cython typing && \
     conda clean -ya
 
-RUN conda install pytorch=1.11.0 cudatoolkit=11.3 -c pytorch && \
+RUN conda install pytorch=1.12.0 cudatoolkit=11.6 -c pytorch && \
     conda clean -ya
 
 RUN cd /tmp && \
