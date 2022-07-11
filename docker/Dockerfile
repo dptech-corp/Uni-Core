@@ -1,11 +1,3 @@
-# ==================================================================
-# module list
-# ------------------------------------------------------------------
-# python        3.8    (conda)
-# pytorch       1.11.0  (conda)
-# apex          from github
-# ==================================================================
-
 FROM nvidia/cuda:11.3.0-cudnn8-devel-ubuntu20.04
 
 ENV LANG C.UTF-8
@@ -60,6 +52,10 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
         debhelper \
         nfs-common
 
+# ==================================================================
+# InfiniBand & RDMA
+# ------------------------------------------------------------------
+
 RUN cd /tmp && \
     wget -q http://content.mellanox.com/ofed/MLNX_OFED-${OFED_VERSION}/MLNX_OFED_LINUX-${OFED_VERSION}-ubuntu20.04-x86_64.tgz && \
     tar xzf MLNX_OFED_LINUX-${OFED_VERSION}-ubuntu20.04-x86_64.tgz && \
@@ -92,14 +88,11 @@ RUN wget -O ~/miniconda.sh https://repo.continuum.io/miniconda/Miniconda3-latest
      rm ~/miniconda.sh
 ENV PATH /opt/conda/bin:$PATH
 
-
-
 RUN conda install -y python=3.8  && conda clean -ya
 
 RUN conda install -y scipy scikit-learn pyyaml tensorboard tensorboardX && \
     conda clean -ya
 
-# install pytorch
 RUN ldconfig
 
 # ==================================================================
