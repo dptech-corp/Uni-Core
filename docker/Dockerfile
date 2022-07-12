@@ -100,7 +100,7 @@ RUN ldconfig
 # ------------------------------------------------------------------
 ENV TORCH_CUDA_ARCH_LIST "7.0;7.5;8.0"
 
-RUN conda install -y numpy pyyaml scipy ipython mkl mkl-include ninja cython typing && \
+RUN conda install -y numpy pyyaml scipy ipython mkl mkl-include ninja cython typing pandas && \
     conda clean -ya
 
 RUN conda install pytorch=1.11.0 cudatoolkit=11.3 -c pytorch && \
