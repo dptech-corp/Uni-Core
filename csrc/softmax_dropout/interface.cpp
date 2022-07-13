@@ -5,7 +5,7 @@
 
 std::vector<c10::optional<torch::Tensor>> fwd_cuda(
     bool is_training,
-    const torch::Tensor &input, 
+    torch::Tensor &input, 
     float dropout_prob,
     c10::optional<at::Generator> gen_
 );
@@ -25,7 +25,7 @@ torch::Tensor bwd_cuda(
 
 std::vector<c10::optional<torch::Tensor>> fwd(
     bool is_training,
-    const torch::Tensor &input,
+    torch::Tensor &input,
     float dropout_prob,
     c10::optional<at::Generator> gen_
 ) {

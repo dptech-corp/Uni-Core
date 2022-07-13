@@ -18,7 +18,7 @@
 
 std::vector<c10::optional<torch::Tensor>> fwd_cuda(
     bool is_training,
-    const torch::Tensor &input, 
+    torch::Tensor &input, 
     float dropout_prob,
     c10::optional<at::Generator> gen_
 ) {
@@ -29,11 +29,10 @@ std::vector<c10::optional<torch::Tensor>> fwd_cuda(
     auto act_options  = input.options().requires_grad(false);
     auto mask_options = act_options.dtype(softmax_mask_dtype(k_seq_len));
 
-    torch::Tensor softmax_results = torch::empty({attn_batches, q_seq_len, k_seq_len}, act_options);
 
     // Softmax Intermediate Result Ptr (used by Matmul1 -> Softmax)
     void *input_ptr = reinterpret_cast<void *>(input.data_ptr());
-    void *softmax_results_ptr = reinterpret_cast<void *>(softmax_results.data_ptr());
+    void *softmax_results_ptr = reinterpret_cast<void *>(input.data_ptr());
 
     // Padded Softmax
     bool softmax_success = false;
@@ -84,7 +83,7 @@ std::vector<c10::optional<torch::Tensor>> fwd_cuda(
             softmax_success = false;
         }
         if (softmax_success) {
-            return {dropout_results, dropout_mask, softmax_results};
+            return {dropout_results, dropout_mask, input};
         } else {
             return {c10::optional<torch::Tensor>(), c10::optional<torch::Tensor>(), c10::optional<torch::Tensor>()};
         }
@@ -120,7 +119,7 @@ std::vector<c10::optional<torch::Tensor>> fwd_cuda(
             softmax_success = false;
         }
         if (softmax_success) {
-            return {softmax_results, c10::optional<torch::Tensor>(), softmax_results};
+            return {input, c10::optional<torch::Tensor>(), input};
         } else {
             return {c10::optional<torch::Tensor>(), c10::optional<torch::Tensor>(), c10::optional<torch::Tensor>()};
         }
@@ -131,9 +130,7 @@ torch::Tensor bwd_cuda(
     torch::Tensor &output_grads, 
     const torch::Tensor &softmax_results, 
     const c10::optional<torch::Tensor> &dropout_mask,
-    float dropout_prob
-) 
-{
+    float dropout_prob) {
     const int attn_batches   = output_grads.size(0);
     const int q_seq_len      = output_grads.size(1);
     const int k_seq_len      = output_grads.size(2);

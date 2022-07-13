@@ -15,12 +15,12 @@ class FusedLayerNormFastFunction(torch.autograd.Function):
   def forward(ctx, input, weight, bias, normalized_shape, eps):
     ctx.normalized_shape = normalized_shape
     ctx.eps = eps
-    input_ = input.contiguous()
-    weight_ = weight.contiguous()
-    bias_ = bias.contiguous()
+    input = input.contiguous()
+    weight = weight.contiguous()
+    bias = bias.contiguous()
     output, mean, invvar = unicore_fused_layernorm.forward(
-        input_, ctx.normalized_shape, weight_, bias_, ctx.eps)
-    ctx.save_for_backward(input_, weight_, bias_, mean, invvar)
+        input, ctx.normalized_shape, weight, bias, ctx.eps)
+    ctx.save_for_backward(input, weight, bias, mean, invvar)
     return output
   @staticmethod
   def backward(ctx, grad_output):
