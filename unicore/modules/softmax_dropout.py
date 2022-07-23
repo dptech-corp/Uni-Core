@@ -9,13 +9,13 @@ import torch.nn.functional as F
 
 class SoftmaxDropoutFast(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, is_training, inputs, bias, dropout_prob, num_groups, num_heads):
+    def forward(ctx, is_training, inputs, mask, bias, dropout_prob):
         (
             dropout_results,
             dropout_mask,
             softmax_results,
         ) = unicore_fused_softmax_dropout.forward(
-            is_training, inputs, bias, dropout_prob, num_groups, num_heads, None
+            is_training, inputs, mask, bias, dropout_prob, None
         )
         if is_training:
             ctx.dropout_prob = dropout_prob
@@ -39,14 +39,20 @@ class SoftmaxDropoutFast(torch.autograd.Function):
             ).sum(dim=0)
         else:
             grad_bias = None
-        return None, grad_input, grad_bias, None, None, None
+        return None, grad_input, None, grad_bias, None
 
 
-def softmax_dropout(input, dropout_prob, is_training=True, bias=None):
+def softmax_dropout(input, dropout_prob, is_training=True, mask=None, bias=None):
     input = input.contiguous()
     input_size = input.size()
-    num_heads = input_size[-3]
-    num_groups = input_size[-4] if len(input_size) >= 4 else 1
+    if mask is not None:
+        assert (
+            mask.shape[-2] == 1 or mask.shape[-2] == input_size[-2]
+        ), "row dim should be 1 or the same as input."
+        assert (
+            mask.shape[-3] == 1 or mask.shape[-3] == input_size[-3]
+        ), "head dim should be 1 or the same as input."
+        mask = mask.contiguous().view(-1, mask.shape[-2], mask.shape[-1])
     input = input.view(-1, input_size[-2], input_size[-1])
     if bias is not None:
         bias = bias.contiguous().view(-1, input_size[-2], input_size[-1])
@@ -55,9 +61,11 @@ def softmax_dropout(input, dropout_prob, is_training=True, bias=None):
         ), "bias batch size must be divisible by input batch size"
     if input.is_cuda and input.shape[-1] <= 2048:
         return SoftmaxDropoutFast.apply(
-            is_training, input, bias, dropout_prob, num_heads, num_groups
+            is_training, input, mask, bias, dropout_prob
         ).view(*input_size)
     else:
+        if mask is None:
+            input += mask
         if bias is not None:
             input += bias
         return F.dropout(

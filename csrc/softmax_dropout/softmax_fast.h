@@ -70,9 +70,9 @@ inline int softmax_rng_delta_offset(int elements)
 
 template <
     typename input_t, typename output_t, typename acc_t,
-    typename Parameters, bool NeedMask, bool NeedBias>
-__global__ void softmax_warp_forward(input_t *dst, input_t *dst_orig, const output_t *src, const input_t *bias,
-                                     typename Parameters::MaskType *mask, acc_t p, int64_t batch_size, int64_t bias_batch_size, int element_count, uint64_t seed, uint64_t rand_offset)
+    typename Parameters, bool NeedMask, bool NeedBias, bool NeedAttnMask>
+__global__ void softmax_warp_forward(input_t *dst, input_t *dst_orig, const output_t *src, const input_t *attn_mask, const input_t *bias,
+                                     typename Parameters::MaskType *mask, acc_t p, int64_t batch_size, int64_t attn_inner_skip_batch, int64_t bias_batch_size, int element_count, uint64_t seed, uint64_t rand_offset)
 {
     using MaskType = typename Parameters::MaskType;
     curandStatePhilox4_32_10_t state;
@@ -101,6 +101,12 @@ __global__ void softmax_warp_forward(input_t *dst, input_t *dst_orig, const outp
 
     int64_t bias_mod_size = bias_batch_size * element_count;
 
+    int64_t attn_mask_div_size = 1;
+    if IF_CONSTEXPR (NeedAttnMask)
+    {
+        attn_mask_div_size = attn_inner_skip_batch * element_count;
+    }
+
     // load data from global memory
     input_t elements_input[Parameters::WarpBatch][Parameters::WarpIterations];
     for (int i = 0; i < Parameters::WarpBatch; ++i)
@@ -126,12 +132,24 @@ __global__ void softmax_warp_forward(input_t *dst, input_t *dst_orig, const outp
         for (int it = 0; it < Parameters::WarpIterations; ++it)
         {
             elements[i][it] = elements_input[i][it];
-            if IF_CONSTEXPR (NeedBias)
+            int element_index = local_idx + it * Parameters::WarpSize;
+            if (element_index < batch_element_count)
             {
-                int element_index = local_idx + it * Parameters::WarpSize;
-                if (element_index < batch_element_count)
+                int64_t global_idx = thread_offset + i * element_count + it * Parameters::WarpSize;
+                if IF_CONSTEXPR (NeedAttnMask)
                 {
-                    elements[i][it] += bias[(thread_offset + i * element_count + it * Parameters::WarpSize) % bias_mod_size];
+                    // e.g.
+                    // elements: [8, 2, 8, 8]
+                    // mask:     [8, 1, 1, 8]
+                    // div_size: 16
+                    // original [5, 2, 7, 3] ->
+                    // mask     [5, 1, 1, 3] ->
+                    auto attn_mask_idx = (global_idx / attn_mask_div_size) * element_count + global_idx % element_count;
+                    elements[i][it] += attn_mask[attn_mask_idx];
+                }
+                if IF_CONSTEXPR (NeedBias)
+                {
+                    elements[i][it] += bias[global_idx % bias_mod_size];
                 }
             }
         }
@@ -268,16 +286,16 @@ __global__ void softmax_warp_forward(input_t *dst, input_t *dst_orig, const outp
     }
 }
 
-#define LAUNCH_FORWARD_KERNEL(l)                                                             \
-    softmax_warp_forward<input_t, output_t, acc_t, SoftmaxParameters<l>, NeedMask, NeedBias> \
-        <<<blocks, threads, 0, at::cuda::getCurrentCUDAStream()>>>(                          \
-            dst, dst_orig, src, bias, (typename SoftmaxParameters<l>::MaskType *)mask, p,    \
-            batch_count, bias_batch_count, softmax_elements, seed, offset);                  \
+#define LAUNCH_FORWARD_KERNEL(l)                                                                           \
+    softmax_warp_forward<input_t, output_t, acc_t, SoftmaxParameters<l>, NeedMask, NeedBias, NeedAttnMask> \
+        <<<blocks, threads, 0, at::cuda::getCurrentCUDAStream()>>>(                                        \
+            dst, dst_orig, src, attn_mask, bias, (typename SoftmaxParameters<l>::MaskType *)mask, p,       \
+            batch_count, attn_inner_skip_batch, bias_batch_count, softmax_elements, seed, offset);         \
     return true;
 
-template <typename input_t, typename output_t, typename acc_t, bool NeedMask, bool NeedBias>
-bool dispatch_softmax_forward(output_t *dst, output_t *dst_orig, const input_t *src, const input_t *bias, void *mask, acc_t p,
-                              int softmax_elements, int64_t batch_count, int64_t bias_batch_count, uint64_t seed, uint64_t offset)
+template <typename input_t, typename output_t, typename acc_t, bool NeedMask, bool NeedBias, bool NeedAttnMask>
+bool dispatch_softmax_forward(output_t *dst, output_t *dst_orig, const input_t *src, const input_t *attn_mask, const input_t *bias, void *mask, acc_t p,
+                              int softmax_elements, int64_t batch_count, int64_t attn_inner_skip_batch, int64_t bias_batch_count, uint64_t seed, uint64_t offset)
 {
     TORCH_INTERNAL_ASSERT(softmax_elements >= 0 && softmax_elements <= 2048);
     if (softmax_elements == 0)
