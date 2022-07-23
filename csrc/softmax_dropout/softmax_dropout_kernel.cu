@@ -37,8 +37,9 @@ std::vector<c10::optional<torch::Tensor>> fwd_cuda(
     }
     void *attn_mask_prt = nullptr;
     int64_t mask_inner_skip = 0;
-    if (attn_mask) {
-        attn_mask_prt = reinterpret_cast<void*>(attn_mask->data_ptr());
+    if (attn_mask)
+    {
+        attn_mask_prt = reinterpret_cast<void *>(attn_mask->data_ptr());
         mask_inner_skip = static_cast<int64_t>(attn_batches / attn_mask->size(0) * q_seq_len / attn_mask->size(1));
     }
     auto act_options = input.options().requires_grad(false);
@@ -68,70 +69,76 @@ std::vector<c10::optional<torch::Tensor>> fwd_cuda(
         uint64_t offset = std::get<1>(rng_engine_inputs);
         if (bias)
         {
-            if (attn_mask) {
-            DISPATCH_FLOAT_AND_HALF_AND_BF16(scalar_type, 0, "softmax_forward",
-                                             softmax_success = dispatch_softmax_forward<scalar_t_0, scalar_t_0, float, true, true, true>(
-                                                 reinterpret_cast<scalar_t_0 *>(dropout_results.data_ptr()),
-                                                 reinterpret_cast<scalar_t_0 *>(softmax_results_ptr),
-                                                 reinterpret_cast<const scalar_t_0 *>(input_ptr),
-                                                 reinterpret_cast<const scalar_t_0 *>(attn_mask_prt),
-                                                 reinterpret_cast<const scalar_t_0 *>(bias_ptr),
-                                                 reinterpret_cast<void *>(dropout_mask.data_ptr()),
-                                                 1.0f - dropout_prob,
-                                                 k_seq_len,
-                                                 attn_batches * q_seq_len,
-                                                 mask_inner_skip,
-                                                 bias_batches * q_seq_len,
-                                                 seed, offset);)
-            } else {
-            DISPATCH_FLOAT_AND_HALF_AND_BF16(scalar_type, 0, "softmax_forward",
-                                             softmax_success = dispatch_softmax_forward<scalar_t_0, scalar_t_0, float, true, true, false>(
-                                                 reinterpret_cast<scalar_t_0 *>(dropout_results.data_ptr()),
-                                                 reinterpret_cast<scalar_t_0 *>(softmax_results_ptr),
-                                                 reinterpret_cast<const scalar_t_0 *>(input_ptr),
-                                                 nullptr,
-                                                 reinterpret_cast<const scalar_t_0 *>(bias_ptr),
-                                                 reinterpret_cast<void *>(dropout_mask.data_ptr()),
-                                                 1.0f - dropout_prob,
-                                                 k_seq_len,
-                                                 attn_batches * q_seq_len,
-                                                 mask_inner_skip,
-                                                 bias_batches * q_seq_len,
-                                                 seed, offset);)
+            if (attn_mask)
+            {
+                DISPATCH_FLOAT_AND_HALF_AND_BF16(scalar_type, 0, "softmax_forward",
+                                                 softmax_success = dispatch_softmax_forward<scalar_t_0, scalar_t_0, float, true, true, true>(
+                                                     reinterpret_cast<scalar_t_0 *>(dropout_results.data_ptr()),
+                                                     reinterpret_cast<scalar_t_0 *>(softmax_results_ptr),
+                                                     reinterpret_cast<const scalar_t_0 *>(input_ptr),
+                                                     reinterpret_cast<const scalar_t_0 *>(attn_mask_prt),
+                                                     reinterpret_cast<const scalar_t_0 *>(bias_ptr),
+                                                     reinterpret_cast<void *>(dropout_mask.data_ptr()),
+                                                     1.0f - dropout_prob,
+                                                     k_seq_len,
+                                                     attn_batches * q_seq_len,
+                                                     mask_inner_skip,
+                                                     bias_batches * q_seq_len,
+                                                     seed, offset);)
+            }
+            else
+            {
+                DISPATCH_FLOAT_AND_HALF_AND_BF16(scalar_type, 0, "softmax_forward",
+                                                 softmax_success = dispatch_softmax_forward<scalar_t_0, scalar_t_0, float, true, true, false>(
+                                                     reinterpret_cast<scalar_t_0 *>(dropout_results.data_ptr()),
+                                                     reinterpret_cast<scalar_t_0 *>(softmax_results_ptr),
+                                                     reinterpret_cast<const scalar_t_0 *>(input_ptr),
+                                                     nullptr,
+                                                     reinterpret_cast<const scalar_t_0 *>(bias_ptr),
+                                                     reinterpret_cast<void *>(dropout_mask.data_ptr()),
+                                                     1.0f - dropout_prob,
+                                                     k_seq_len,
+                                                     attn_batches * q_seq_len,
+                                                     mask_inner_skip,
+                                                     bias_batches * q_seq_len,
+                                                     seed, offset);)
             }
         }
         else
         {
-            if (attn_mask) {
-            DISPATCH_FLOAT_AND_HALF_AND_BF16(scalar_type, 0, "softmax_forward",
-                                             softmax_success = dispatch_softmax_forward<scalar_t_0, scalar_t_0, float, true, false, true>(
-                                                 reinterpret_cast<scalar_t_0 *>(dropout_results.data_ptr()),
-                                                 reinterpret_cast<scalar_t_0 *>(softmax_results_ptr),
-                                                 reinterpret_cast<const scalar_t_0 *>(input_ptr),
-                                                 reinterpret_cast<const scalar_t_0 *>(attn_mask_prt),
-                                                 nullptr,
-                                                 reinterpret_cast<void *>(dropout_mask.data_ptr()),
-                                                 1.0f - dropout_prob,
-                                                 k_seq_len,
-                                                 attn_batches * q_seq_len,
-                                                 mask_inner_skip,
-                                                 bias_batches * q_seq_len,
-                                                 seed, offset);)
-            } else {
-            DISPATCH_FLOAT_AND_HALF_AND_BF16(scalar_type, 0, "softmax_forward",
-                                             softmax_success = dispatch_softmax_forward<scalar_t_0, scalar_t_0, float, true, false, false>(
-                                                 reinterpret_cast<scalar_t_0 *>(dropout_results.data_ptr()),
-                                                 reinterpret_cast<scalar_t_0 *>(softmax_results_ptr),
-                                                 reinterpret_cast<const scalar_t_0 *>(input_ptr),
-                                                 nullptr,
-                                                 nullptr,
-                                                 reinterpret_cast<void *>(dropout_mask.data_ptr()),
-                                                 1.0f - dropout_prob,
-                                                 k_seq_len,
-                                                 attn_batches * q_seq_len,
-                                                 mask_inner_skip,
-                                                 bias_batches * q_seq_len,
-                                                 seed, offset);)
+            if (attn_mask)
+            {
+                DISPATCH_FLOAT_AND_HALF_AND_BF16(scalar_type, 0, "softmax_forward",
+                                                 softmax_success = dispatch_softmax_forward<scalar_t_0, scalar_t_0, float, true, false, true>(
+                                                     reinterpret_cast<scalar_t_0 *>(dropout_results.data_ptr()),
+                                                     reinterpret_cast<scalar_t_0 *>(softmax_results_ptr),
+                                                     reinterpret_cast<const scalar_t_0 *>(input_ptr),
+                                                     reinterpret_cast<const scalar_t_0 *>(attn_mask_prt),
+                                                     nullptr,
+                                                     reinterpret_cast<void *>(dropout_mask.data_ptr()),
+                                                     1.0f - dropout_prob,
+                                                     k_seq_len,
+                                                     attn_batches * q_seq_len,
+                                                     mask_inner_skip,
+                                                     bias_batches * q_seq_len,
+                                                     seed, offset);)
+            }
+            else
+            {
+                DISPATCH_FLOAT_AND_HALF_AND_BF16(scalar_type, 0, "softmax_forward",
+                                                 softmax_success = dispatch_softmax_forward<scalar_t_0, scalar_t_0, float, true, false, false>(
+                                                     reinterpret_cast<scalar_t_0 *>(dropout_results.data_ptr()),
+                                                     reinterpret_cast<scalar_t_0 *>(softmax_results_ptr),
+                                                     reinterpret_cast<const scalar_t_0 *>(input_ptr),
+                                                     nullptr,
+                                                     nullptr,
+                                                     reinterpret_cast<void *>(dropout_mask.data_ptr()),
+                                                     1.0f - dropout_prob,
+                                                     k_seq_len,
+                                                     attn_batches * q_seq_len,
+                                                     mask_inner_skip,
+                                                     bias_batches * q_seq_len,
+                                                     seed, offset);)
             }
         }
 
@@ -148,70 +155,76 @@ std::vector<c10::optional<torch::Tensor>> fwd_cuda(
     {
         if (bias)
         {
-            if(attn_mask) {
-            DISPATCH_FLOAT_AND_HALF_AND_BF16(scalar_type, 0, "softmax_forward",
-                                             softmax_success = dispatch_softmax_forward<scalar_t_0, scalar_t_0, float, false, true, true>(
-                                                 reinterpret_cast<scalar_t_0 *>(softmax_results_ptr),
-                                                 nullptr,
-                                                 reinterpret_cast<const scalar_t_0 *>(input_ptr),
-                                                 reinterpret_cast<const scalar_t_0 *>(attn_mask_prt),
-                                                 reinterpret_cast<const scalar_t_0 *>(bias_ptr),
-                                                 nullptr,
-                                                 1.0,
-                                                 k_seq_len,
-                                                 attn_batches * q_seq_len,
-                                                 mask_inner_skip,
-                                                 bias_batches * q_seq_len,
-                                                 0, 0);)
-            } else {
-            DISPATCH_FLOAT_AND_HALF_AND_BF16(scalar_type, 0, "softmax_forward",
-                                             softmax_success = dispatch_softmax_forward<scalar_t_0, scalar_t_0, float, false, true, false>(
-                                                 reinterpret_cast<scalar_t_0 *>(softmax_results_ptr),
-                                                 nullptr,
-                                                 reinterpret_cast<const scalar_t_0 *>(input_ptr),
-                                                 nullptr,
-                                                 reinterpret_cast<const scalar_t_0 *>(bias_ptr),
-                                                 nullptr,
-                                                 1.0,
-                                                 k_seq_len,
-                                                 attn_batches * q_seq_len,
-                                                 mask_inner_skip,
-                                                 bias_batches * q_seq_len,
-                                                 0, 0);)
+            if (attn_mask)
+            {
+                DISPATCH_FLOAT_AND_HALF_AND_BF16(scalar_type, 0, "softmax_forward",
+                                                 softmax_success = dispatch_softmax_forward<scalar_t_0, scalar_t_0, float, false, true, true>(
+                                                     reinterpret_cast<scalar_t_0 *>(softmax_results_ptr),
+                                                     nullptr,
+                                                     reinterpret_cast<const scalar_t_0 *>(input_ptr),
+                                                     reinterpret_cast<const scalar_t_0 *>(attn_mask_prt),
+                                                     reinterpret_cast<const scalar_t_0 *>(bias_ptr),
+                                                     nullptr,
+                                                     1.0,
+                                                     k_seq_len,
+                                                     attn_batches * q_seq_len,
+                                                     mask_inner_skip,
+                                                     bias_batches * q_seq_len,
+                                                     0, 0);)
+            }
+            else
+            {
+                DISPATCH_FLOAT_AND_HALF_AND_BF16(scalar_type, 0, "softmax_forward",
+                                                 softmax_success = dispatch_softmax_forward<scalar_t_0, scalar_t_0, float, false, true, false>(
+                                                     reinterpret_cast<scalar_t_0 *>(softmax_results_ptr),
+                                                     nullptr,
+                                                     reinterpret_cast<const scalar_t_0 *>(input_ptr),
+                                                     nullptr,
+                                                     reinterpret_cast<const scalar_t_0 *>(bias_ptr),
+                                                     nullptr,
+                                                     1.0,
+                                                     k_seq_len,
+                                                     attn_batches * q_seq_len,
+                                                     mask_inner_skip,
+                                                     bias_batches * q_seq_len,
+                                                     0, 0);)
             }
         }
         else
         {
-            if (attn_mask) {
-            DISPATCH_FLOAT_AND_HALF_AND_BF16(scalar_type, 0, "softmax_forward",
-                                             softmax_success = dispatch_softmax_forward<scalar_t_0, scalar_t_0, float, false, false, true>(
-                                                 reinterpret_cast<scalar_t_0 *>(softmax_results_ptr),
-                                                 nullptr,
-                                                 reinterpret_cast<const scalar_t_0 *>(input_ptr),
-                                                 reinterpret_cast<const scalar_t_0 *>(attn_mask_prt),
-                                                 nullptr,
-                                                 nullptr,
-                                                 1.0,
-                                                 k_seq_len,
-                                                 attn_batches * q_seq_len,
-                                                 mask_inner_skip,
-                                                 bias_batches * q_seq_len,
-                                                 0, 0);)
-            } else {
-            DISPATCH_FLOAT_AND_HALF_AND_BF16(scalar_type, 0, "softmax_forward",
-                                             softmax_success = dispatch_softmax_forward<scalar_t_0, scalar_t_0, float, false, false, false>(
-                                                 reinterpret_cast<scalar_t_0 *>(softmax_results_ptr),
-                                                 nullptr,
-                                                 reinterpret_cast<const scalar_t_0 *>(input_ptr),
-                                                 nullptr,
-                                                 nullptr,
-                                                 nullptr,
-                                                 1.0,
-                                                 k_seq_len,
-                                                 attn_batches * q_seq_len,
-                                                 mask_inner_skip,
-                                                 bias_batches * q_seq_len,
-                                                 0, 0);) 
+            if (attn_mask)
+            {
+                DISPATCH_FLOAT_AND_HALF_AND_BF16(scalar_type, 0, "softmax_forward",
+                                                 softmax_success = dispatch_softmax_forward<scalar_t_0, scalar_t_0, float, false, false, true>(
+                                                     reinterpret_cast<scalar_t_0 *>(softmax_results_ptr),
+                                                     nullptr,
+                                                     reinterpret_cast<const scalar_t_0 *>(input_ptr),
+                                                     reinterpret_cast<const scalar_t_0 *>(attn_mask_prt),
+                                                     nullptr,
+                                                     nullptr,
+                                                     1.0,
+                                                     k_seq_len,
+                                                     attn_batches * q_seq_len,
+                                                     mask_inner_skip,
+                                                     bias_batches * q_seq_len,
+                                                     0, 0);)
+            }
+            else
+            {
+                DISPATCH_FLOAT_AND_HALF_AND_BF16(scalar_type, 0, "softmax_forward",
+                                                 softmax_success = dispatch_softmax_forward<scalar_t_0, scalar_t_0, float, false, false, false>(
+                                                     reinterpret_cast<scalar_t_0 *>(softmax_results_ptr),
+                                                     nullptr,
+                                                     reinterpret_cast<const scalar_t_0 *>(input_ptr),
+                                                     nullptr,
+                                                     nullptr,
+                                                     nullptr,
+                                                     1.0,
+                                                     k_seq_len,
+                                                     attn_batches * q_seq_len,
+                                                     mask_inner_skip,
+                                                     bias_batches * q_seq_len,
+                                                     0, 0);)
             }
         }
         if (softmax_success)

@@ -20,8 +20,8 @@ class SoftmaxDropoutFast(torch.autograd.Function):
         if is_training:
             ctx.dropout_prob = dropout_prob
             ctx.save_for_backward(softmax_results, dropout_mask)
-            ctx.has_bias = bias is not None
-            if bias is not None:
+            ctx.has_bias = bias is not None and bias.requires_grad
+            if ctx.has_bias:
                 ctx.bias_batch_dim = bias.shape[0]
         return dropout_results
 
@@ -46,6 +46,7 @@ def softmax_dropout(input, dropout_prob, is_training=True, mask=None, bias=None)
     input = input.contiguous()
     input_size = input.size()
     if mask is not None:
+        assert mask.dtype == input.dtype
         assert (
             mask.shape[-2] == 1 or mask.shape[-2] == input_size[-2]
         ), "row dim should be 1 or the same as input."
@@ -55,6 +56,7 @@ def softmax_dropout(input, dropout_prob, is_training=True, mask=None, bias=None)
         mask = mask.contiguous().view(-1, mask.shape[-2], mask.shape[-1])
     input = input.view(-1, input_size[-2], input_size[-1])
     if bias is not None:
+        assert bias.dtype == input.dtype
         bias = bias.contiguous().view(-1, input_size[-2], input_size[-1])
         assert (
             input.shape[0] % bias.shape[0] == 0

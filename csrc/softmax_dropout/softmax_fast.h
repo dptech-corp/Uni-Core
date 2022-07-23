@@ -101,7 +101,7 @@ __global__ void softmax_warp_forward(input_t *dst, input_t *dst_orig, const outp
 
     int64_t bias_mod_size = bias_batch_size * element_count;
 
-    int64_t attn_mask_div_size = 1;
+    int64_t attn_mask_div_size = element_count;
     if IF_CONSTEXPR (NeedAttnMask)
     {
         attn_mask_div_size = attn_inner_skip_batch * element_count;
@@ -109,9 +109,11 @@ __global__ void softmax_warp_forward(input_t *dst, input_t *dst_orig, const outp
 
     // load data from global memory
     input_t elements_input[Parameters::WarpBatch][Parameters::WarpIterations];
+#pragma unroll
     for (int i = 0; i < Parameters::WarpBatch; ++i)
     {
         int batch_element_count = (i >= local_batches) ? 0 : element_count;
+#pragma unroll
         for (int it = 0; it < Parameters::WarpIterations; ++it)
         {
             int element_index = local_idx + it * Parameters::WarpSize;
@@ -124,11 +126,14 @@ __global__ void softmax_warp_forward(input_t *dst, input_t *dst_orig, const outp
         }
     }
 
+    //  TODO: try to use 2 sections
     // convert input_t to acc_t
     acc_t elements[Parameters::WarpBatch][Parameters::WarpIterations];
+#pragma unroll
     for (int i = 0; i < Parameters::WarpBatch; ++i)
     {
         int batch_element_count = (i >= local_batches) ? 0 : element_count;
+#pragma unroll
         for (int it = 0; it < Parameters::WarpIterations; ++it)
         {
             elements[i][it] = elements_input[i][it];
@@ -138,13 +143,7 @@ __global__ void softmax_warp_forward(input_t *dst, input_t *dst_orig, const outp
                 int64_t global_idx = thread_offset + i * element_count + it * Parameters::WarpSize;
                 if IF_CONSTEXPR (NeedAttnMask)
                 {
-                    // e.g.
-                    // elements: [8, 2, 8, 8]
-                    // mask:     [8, 1, 1, 8]
-                    // div_size: 16
-                    // original [5, 2, 7, 3] ->
-                    // mask     [5, 1, 1, 3] ->
-                    auto attn_mask_idx = (global_idx / attn_mask_div_size) * element_count + global_idx % element_count;
+                    auto attn_mask_idx = static_cast<int64_t>(global_idx / attn_mask_div_size) * element_count + (global_idx % element_count);
                     elements[i][it] += attn_mask[attn_mask_idx];
                 }
                 if IF_CONSTEXPR (NeedBias)
