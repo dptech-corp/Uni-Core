@@ -114,10 +114,6 @@ __global__ void softmax_warp_forward(input_t *dst, input_t *dst_orig, const outp
             if (element_index < batch_element_count)
             {
                 elements_input[i][it] = src[i * element_count + it * Parameters::WarpSize];
-                if IF_CONSTEXPR (NeedBias)
-                {
-                    elements_input[i][it] += bias[(thread_offset + i * element_count + it * Parameters::WarpSize) % bias_mod_size];
-                }
             }
         }
     }
@@ -126,9 +122,18 @@ __global__ void softmax_warp_forward(input_t *dst, input_t *dst_orig, const outp
     acc_t elements[Parameters::WarpBatch][Parameters::WarpIterations];
     for (int i = 0; i < Parameters::WarpBatch; ++i)
     {
+        int batch_element_count = (i >= local_batches) ? 0 : element_count;
         for (int it = 0; it < Parameters::WarpIterations; ++it)
         {
             elements[i][it] = elements_input[i][it];
+            if IF_CONSTEXPR (NeedBias)
+            {
+                int element_index = local_idx + it * Parameters::WarpSize;
+                if (element_index < batch_element_count)
+                {
+                    elements[i][it] += bias[(thread_offset + i * element_count + it * Parameters::WarpSize) % bias_mod_size];
+                }
+            }
         }
     }
 
