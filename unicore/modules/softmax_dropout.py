@@ -17,6 +17,8 @@ class SoftmaxDropoutFast(torch.autograd.Function):
             ctx.dropout_prob = dropout_prob
             ctx.save_for_backward(softmax_results, dropout_mask)
             ctx.has_bias = bias is not None
+            if bias is not None:
+                ctx.bias_batch_dim = bias.shape[0]
         return dropout_results
     @staticmethod
     def backward(ctx, grad_output):
@@ -26,12 +28,12 @@ class SoftmaxDropoutFast(torch.autograd.Function):
         grad_input = unicore_fused_softmax_dropout.backward(grad_output, softmax_results,
             dropout_mask, dropout_prob)
         if ctx.has_bias:
-            grad_bias = grad_input.sum(dim=1, keepdims=True)
+            grad_bias = grad_input.view(-1, ctx.bias_batch_dim, grad_input.shape[-2], grad_input.shape[-1]).sum(dim=0)
         else:
             grad_bias = None
         return None, grad_input, grad_bias, None, None, None
 
-def softmax_dropout(input, dropout_prob, bias=None, is_training=True):
+def softmax_dropout(input, dropout_prob, is_training=True, bias=None):
     input = input.contiguous()
     input_size = input.size()
     num_heads = input_size[-3]
@@ -43,12 +45,3 @@ def softmax_dropout(input, dropout_prob, bias=None, is_training=True):
         return SoftmaxDropoutFast.apply(is_training, input, bias, dropout_prob, num_heads, num_groups).view(*input_size)
     else:
         return F.dropout(F.softmax(input + bias, dim=-1), p=dropout_prob, training=is_training).view(*input_size)
-
-
-a = torch.randn(1, 64, 8, 128, 256).cuda()
-bias = torch.randn(1, 1, 8, 128, 256).cuda()
-
-t1 = torch.softmax(a + bias, dim=-1)
-t2 = softmax_dropout(a, 0, bias=None, is_training=True)
-
-diff = (t1 - t2).abs().max()

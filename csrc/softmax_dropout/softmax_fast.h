@@ -100,11 +100,6 @@ __global__ void softmax_warp_forward(input_t *dst, input_t *dst_orig, const outp
     }
 
     int64_t bias_mod_size = bias_batch_size * element_count;
-    // if IF_CONSTEXPR (NeedBias)
-    // {
-    //     printf("info: %d, %d\n", bias_batch_size, thread_offset % bias_mod_size);
-    //     bias += thread_offset % bias_mod_size;
-    // }
 
     // load data from global memory
     input_t elements_input[Parameters::WarpBatch][Parameters::WarpIterations];
@@ -121,7 +116,7 @@ __global__ void softmax_warp_forward(input_t *dst, input_t *dst_orig, const outp
                 elements_input[i][it] = src[i * element_count + it * Parameters::WarpSize];
                 if IF_CONSTEXPR (NeedBias)
                 {
-                    elements_input[i][it] += 1; // bias[(thread_offset + i * element_count + it * Parameters::WarpSize) % bias_mod_size];
+                    elements_input[i][it] += bias[(thread_offset + i * element_count + it * Parameters::WarpSize) % bias_mod_size];
                 }
             }
         }

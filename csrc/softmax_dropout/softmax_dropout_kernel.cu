@@ -106,7 +106,7 @@ std::vector<c10::optional<torch::Tensor>> fwd_cuda(
         if (bias)
         {
             DISPATCH_FLOAT_AND_HALF_AND_BF16(scalar_type, 0, "softmax_forward",
-                                             softmax_success = dispatch_softmax_forward<scalar_t_0, scalar_t_0, float, true, true>(
+                                             softmax_success = dispatch_softmax_forward<scalar_t_0, scalar_t_0, float, false, true>(
                                                  reinterpret_cast<scalar_t_0 *>(softmax_results_ptr),
                                                  nullptr,
                                                  reinterpret_cast<const scalar_t_0 *>(input_ptr),
@@ -121,7 +121,7 @@ std::vector<c10::optional<torch::Tensor>> fwd_cuda(
         else
         {
             DISPATCH_FLOAT_AND_HALF_AND_BF16(scalar_type, 0, "softmax_forward",
-                                             softmax_success = dispatch_softmax_forward<scalar_t_0, scalar_t_0, float, true, false>(
+                                             softmax_success = dispatch_softmax_forward<scalar_t_0, scalar_t_0, float, false, false>(
                                                  reinterpret_cast<scalar_t_0 *>(softmax_results_ptr),
                                                  nullptr,
                                                  reinterpret_cast<const scalar_t_0 *>(input_ptr),
