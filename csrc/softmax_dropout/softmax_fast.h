@@ -126,7 +126,6 @@ __global__ void softmax_warp_forward(input_t *dst, input_t *dst_orig, const outp
         }
     }
 
-    //  TODO: try to use 2 sections
     // convert input_t to acc_t
     acc_t elements[Parameters::WarpBatch][Parameters::WarpIterations];
 #pragma unroll
@@ -167,6 +166,7 @@ __global__ void softmax_warp_forward(input_t *dst, input_t *dst_orig, const outp
 #pragma unroll
     for (int it = 1; it < Parameters::WarpIterations; ++it)
     {
+#pragma unroll
         for (int i = 0; i < Parameters::WarpBatch; ++i)
         {
             max_value[i] = (max_value[i] > elements[i][it]) ? max_value[i] : elements[i][it];
@@ -196,6 +196,7 @@ __global__ void softmax_warp_forward(input_t *dst, input_t *dst_orig, const outp
 #pragma unroll
     for (int i = 0; i < Parameters::WarpBatch; ++i)
     {
+#pragma unroll
         for (int it = 0; it < Parameters::WarpIterations; ++it)
         {
             elements[i][it] = std::exp(elements[i][it] - max_value[i]);
