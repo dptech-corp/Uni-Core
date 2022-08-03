@@ -94,7 +94,7 @@ def softmax_dropout(input, dropout_prob, is_training=True, mask=None, bias=None)
         torch.Tensor: the result after softmax
     """
     input = input.contiguous()
-    if input.is_cuda and input.shape[-1] <= 2048:
+    if input.is_cuda:
         input_size = input.size()
         if mask is not None:
             _check_mask(mask, input)
@@ -103,9 +103,14 @@ def softmax_dropout(input, dropout_prob, is_training=True, mask=None, bias=None)
             _check_bias(bias, input)
             bias = bias.contiguous().view(-1, input_size[-2], input_size[-1])
         input = input.view(-1, input_size[-2], input_size[-1])
-        return SoftmaxDropoutFast.apply(
-            is_training, input, mask, bias, dropout_prob
-        ).view(*input_size)
+        if dropout_prob <= 0.0 or input_size[-1] <= 1024:
+            return SoftmaxDropoutFast.apply(
+                is_training, input, mask, bias, dropout_prob
+            ).view(*input_size)
+        else:
+            return F.dropout(SoftmaxDropoutFast.apply(
+                is_training, input, mask, bias, 0.0
+            ).view(*input_size), p=dropout_prob, training=is_training)
     else:
         if mask is not None:
             input += mask
