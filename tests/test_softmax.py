@@ -39,7 +39,7 @@ def test_softmax():
     n_batch = 4
     n_heads = 8
     n_query = 128
-    test_dims = [64, 128, 256, 512, 1024]
+    test_dims = [64, 128, 256, 512, 1024, 1536, 2048]
     test_dtype = [torch.float32, torch.float16, torch.bfloat16]
     test_device = torch.device("cuda")
     for last_dim in test_dims:
@@ -83,7 +83,7 @@ def test_tri_softmax1():
     n_groups = 32
     n_heads = 8
     n_query = 128
-    test_dims = [64, 128, 256, 512, 1024]
+    test_dims = [64, 128, 256, 512, 1024, 1536, 2048]
     test_dtype = [torch.float32, torch.float16, torch.bfloat16]
     test_device = torch.device("cuda")
     for last_dim in test_dims:
@@ -129,7 +129,7 @@ def test_tri_softmax2():
     n_groups = 32
     n_heads = 8
     n_query = 128
-    test_dims = [64, 128, 256, 512, 1024]
+    test_dims = [64, 128, 256, 512, 1024, 1536, 2048]
     test_dtype = [torch.float32, torch.float16, torch.bfloat16]
     test_device = torch.device("cuda")
     for last_dim in test_dims:
