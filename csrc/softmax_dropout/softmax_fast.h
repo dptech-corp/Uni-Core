@@ -501,7 +501,7 @@ bool dispatch_softmax_forward(output_t *dst, output_t *dst_orig, const input_t *
                 GetNumBlocks(block_size, rows, waves, &grid_dim);
                 dim3 block(block_size);
                 const size_t smem = cols * sizeof(acc_t);
-                softmax_block_forward<input_t, output_t, acc_t,  block_size, NeedAttnMask, NeedBias><<<grid_dim, block, smem>>>(
+                softmax_block_forward<input_t, output_t, acc_t,  block_size, NeedBias, NeedAttnMask><<<grid_dim, block, smem>>>(
                     src, dst, attn_mask, bias, rows, cols, attn_inner_skip_batch, bias_batch_count);
                 return true;
             }
