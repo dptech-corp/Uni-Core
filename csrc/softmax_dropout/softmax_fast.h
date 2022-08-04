@@ -444,7 +444,6 @@ template <typename input_t, typename output_t, typename acc_t, bool NeedMask, bo
 bool dispatch_softmax_forward(output_t *dst, output_t *dst_orig, const input_t *src, const input_t *attn_mask, const input_t *bias, void *mask, acc_t p,
                               int softmax_elements, int64_t batch_count, int64_t attn_inner_skip_batch, int64_t bias_batch_count, uint64_t seed, uint64_t offset)
 {
-    TORCH_INTERNAL_ASSERT(softmax_elements >= 0 && softmax_elements <= 2048);
     if (softmax_elements == 0)
     {
         return false;
@@ -677,7 +676,6 @@ template <typename input_t, typename output_t, typename acc_t, bool IsLogSoftmax
 void dispatch_softmax_backward(output_t *grad_input, const input_t *grad, const input_t *output,
                                const void *mask, acc_t p, int softmax_elements, int64_t batch_count)
 {
-    TORCH_INTERNAL_ASSERT(softmax_elements >= 0 && softmax_elements <= 2048);
     if (softmax_elements == 0)
     {
         return;
