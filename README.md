@@ -27,6 +27,7 @@ Related projects
 ----------------
 
 - [Uni-Mol](https://github.com/dptech-corp/Uni-Mol)
+- [Uni-Fold](https://github.com/dptech-corp/Uni-Fold)
 
 Acknowledgement
 ---------------
