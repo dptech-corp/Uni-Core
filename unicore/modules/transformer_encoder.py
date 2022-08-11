@@ -157,7 +157,7 @@ class TransformerEncoder(nn.Module):
         for layer in self.layers:   
             x = layer(x, padding_mask=padding_mask, attn_bias=attn_mask)
         
-        if self.final_layer_norm !=  None:
+        if self.final_layer_norm is not None:
             x = self.final_layer_norm(x)
 
         return x
