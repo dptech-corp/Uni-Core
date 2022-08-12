@@ -99,7 +99,7 @@ class SelfMultiheadAttention(nn.Module):
         else:
             attn_weights += attn_bias
             attn = softmax_dropout(
-                attn_weights, self.dropout, self.training,
+                attn_weights, self.dropout, self.training, inplace=False,
             )
 
         o = torch.bmm(attn, v)

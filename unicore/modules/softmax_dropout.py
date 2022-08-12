@@ -81,7 +81,7 @@ def _check_bias(bias, input):
         prev_non_one = bias.shape[i] != 1
 
 
-def softmax_dropout(input, dropout_prob, is_training=True, mask=None, bias=None):
+def softmax_dropout(input, dropout_prob, is_training=True, mask=None, bias=None, inplace=True):
     """softmax dropout, and mask, bias are optional.
     Args:
         input (torch.Tensor): input tensor
@@ -103,6 +103,9 @@ def softmax_dropout(input, dropout_prob, is_training=True, mask=None, bias=None)
             _check_bias(bias, input)
             bias = bias.contiguous().view(-1, input_size[-2], input_size[-1])
         input = input.view(-1, input_size[-2], input_size[-1])
+        if not inplace:
+            # copy a input for non-inplace case
+            input = input.clone()
         if dropout_prob <= 0.0 or input_size[-1] <= 1024:
             return SoftmaxDropoutFast.apply(
                 is_training, input, mask, bias, dropout_prob
