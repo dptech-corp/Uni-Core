@@ -7,8 +7,17 @@ import numbers
 from torch.nn.parameter import Parameter
 from torch.nn import init
 from torch.nn import functional as F
-import unicore_fused_layernorm
-import unicore_fused_layernorm_backward_gamma_beta
+
+try:
+    import unicore_fused_layernorm
+    import unicore_fused_layernorm_backward_gamma_beta
+    HAS_LAYER_NORM = True
+except:
+    print("fused_layer_norm is not installed corrected")
+    HAS_LAYER_NORM = False
+
+if not torch.cuda.is_available() or torch.cuda.get_device_capability()[0] < 7:
+    HAS_LAYER_NORM = False
 
 class FusedLayerNormFastFunction(torch.autograd.Function):
   @staticmethod
@@ -54,7 +63,7 @@ class LayerNorm(torch.nn.Module):
         init.zeros_(self.bias)
 
     def forward(self, input):
-        if not input.is_cuda:
+        if not input.is_cuda or not HAS_LAYER_NORM:
             return F.layer_norm(
                 input, self.normalized_shape, self.weight, self.bias, self.eps)
         return FusedLayerNormFastFunction.apply(

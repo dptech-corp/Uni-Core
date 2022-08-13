@@ -3,9 +3,17 @@
 # LICENSE file in the root directory of this source tree.
 
 import torch
-import unicore_fused_softmax_dropout
 import torch.nn.functional as F
 
+try:
+    import unicore_fused_softmax_dropout
+    HAS_SOFTMAX = True
+except:
+    print("fused_softmax is not installed corrected")
+    HAS_SOFTMAX = False
+
+if not torch.cuda.is_available() or torch.cuda.get_device_capability()[0] < 7:
+    HAS_SOFTMAX = False
 
 class SoftmaxDropoutFast(torch.autograd.Function):
     @staticmethod
@@ -94,7 +102,7 @@ def softmax_dropout(input, dropout_prob, is_training=True, mask=None, bias=None,
         torch.Tensor: the result after softmax
     """
     input = input.contiguous()
-    if input.is_cuda:
+    if input.is_cuda and HAS_SOFTMAX:
         input_size = input.size()
         if mask is not None:
             _check_mask(mask, input)

@@ -34,6 +34,7 @@ class UnicoreAdam(UnicoreOptimizer):
             not getattr(args, "use_old_adam", False)
             and fused_adam_cls is not None
             and torch.cuda.is_available()
+            and torch.cuda.get_device_capability()[0] >= 7
         )
         if use_fused_adam:
             logger.info("using FusedAdam")
