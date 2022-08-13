@@ -136,13 +136,16 @@ jobs:
           tag_name: ${{ steps.extract_branch.outputs.branch }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+ 
       # - name: Test
       #   run: |
       #     mkdir dist
-      #     echo ${{ github.sha }} > ./dist/1.whl
-      #     ls dist/*whl |xargs -I {} mv {} unicore-${{ steps.extract_branch.outputs.branch }}-py${{ matrix.python-version }}-cu${{ matrix.cuda-version }}-torch${{ matrix.torch-version }}.whl
-      #   shell: 
+      #     echo ${{ github.sha }} > ./dist/unicore-0.0.1a0-linux_x86_64.whl
+      #     tmpname=cu${{ matrix.cuda-version }}torch${{ matrix.torch-version }}
+      #     wheel_name=$(ls dist/*whl | xargs -n 1 basename | sed "s/-/+$tmpname-/2")
+      #     ls dist/*whl |xargs -I {} mv {} ${wheel_name}
+      #     echo "wheel_name=${wheel_name}" >> $GITHUB_ENV
+      #   shell:
       #     bash
 
       - name: Build wheel
@@ -153,8 +156,11 @@ jobs:
           export CUDA_INSTALL_DIR=/usr/local/cuda-11.3$CUDA_INSTALL_DIR
           pip install wheel
           python setup.py bdist_wheel --dist-dir=dist
-          ls dist/*whl |xargs -I {} mv {} unicore-${{ steps.extract_branch.outputs.branch }}-py${{ matrix.python-version }}-cu${{ matrix.cuda-version }}-torch${{ matrix.torch-version }}.whl
-      
+          tmpname=cu${{ matrix.cuda-version }}torch${{ matrix.torch-version }}
+          wheel_name=$(ls dist/*whl | xargs -n 1 basename | sed "s/-/+$tmpname-/2")
+          ls dist/*whl |xargs -I {} mv {} ${wheel_name}
+          echo "wheel_name=${wheel_name}" >> $GITHUB_ENV
+
       # - name: Create Release
       #   id: create_release
       #   uses: actions/create-release@v1
@@ -170,11 +176,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # upload_url: ${{ needs.create_release.outputs.upload_url }} 
+          # upload_url: ${{ needs.create_release.outputs.upload_url }}
           # check here why didn't works
           upload_url: ${{ steps.get_current_release.outputs.upload_url }}
-          asset_path: ./unicore-${{ steps.extract_branch.outputs.branch }}-py${{ matrix.python-version }}-cu${{ matrix.cuda-version }}-torch${{ matrix.torch-version }}.whl
-          asset_name: unicore-${{ steps.extract_branch.outputs.branch }}-py${{ matrix.python-version }}-cu${{ matrix.cuda-version }}-torch${{ matrix.torch-version }}.whl
+          asset_path: ./${{env.wheel_name}}
+          asset_name: ${{env.wheel_name}}
           asset_content_type: application/*
 
       # - name: 'Check Release exists'
