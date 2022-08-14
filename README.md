@@ -13,13 +13,25 @@ Uni-Core is built for rapidly creating PyTorch models with high performance, esp
 - Easy to create new models
 
 
+Installation
+------------
 
-To install:
-```python
-python setup.py install
-```
-We recommend to use [docker](https://github.com/dptech-corp/Uni-Core/blob/main/docker/Dockerfile) for installation.
+**Build from source**
 
+You can use `python setup.py install` or `pip install .` to build Uni-Core from source. The CUDA version in the build environment should be the same as the one in PyTorch.
+
+
+**Use pre-compiled python wheels**
+
+We also pre-compiled wheels by GitHub Actions. You can download them from the [Release](https://github.com/dptech-corp/Uni-Core/releases). And you should check the pyhon version, PyTorch version and CUDA version. For example, for PyToch 1.12.1, python 3.7, and CUDA 11.3, you can install [unicore-0.0.1+cu113torch1.12.1-cp37-cp37m-linux_x86_64.whl](https://github.com/dptech-corp/Uni-Core/releases/download/0.0.1/unicore-0.0.1+cu113torch1.12.1-cp37-cp37m-linux_x86_64.whl). 
+
+**Docker image**
+
+We also provide the docker image. you can pull it by `docker pull dptechnology/unicore:0.0.1-pytorch1.11.0-cuda11.3`. To use GPUs within docker, you need to [install nvidia-docker-2](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#docker) first.
+
+
+Example
+-------
 
 To build a model, you can refer to [example/bert](https://github.com/dptech-corp/Uni-Core/tree/main/examples/bert). 
 
