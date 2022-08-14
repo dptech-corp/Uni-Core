@@ -14,8 +14,8 @@ import sys
 
 from setuptools import find_packages, setup
 
-if sys.version_info < (3, 6):
-    sys.exit("Sorry, Python >= 3.6 is required for unicore.")
+if sys.version_info < (3, 7):
+    sys.exit("Sorry, Python >= 3.7 is required for unicore.")
 
 
 def write_version_py():
@@ -210,16 +210,16 @@ setup(
     classifiers=[
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
     setup_requires=[
         "setuptools>=18.0",
     ],
     install_requires=[
-        'numpy<1.20.0; python_version<"3.7"',
         'numpy; python_version>="3.7"',
         "lmdb",
         "torch>=1.11.0",
