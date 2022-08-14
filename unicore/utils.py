@@ -12,23 +12,26 @@ import sys
 import warnings
 from functools import partial
 from typing import List, Callable, Any, Dict
+import torch
+import torch.nn.functional as F
 
 try:
     import unicore_fused_multi_tensor
     HAS_MULTI_TENSOR = True
 except:
-    print("please install latest fused_ops to get multi_tensor.")
+    print("fused_multi_tensor is not installed corrected")
     HAS_MULTI_TENSOR = False
 
 try:
     import unicore_fused_rounding
     HAS_FUSED_ROUNDING = True
 except:
-    print("please install latest fused_ops to get fused_rounding.")
+    print("fused_rounding is not installed corrected")
     HAS_FUSED_ROUNDING = False
 
-import torch
-import torch.nn.functional as F
+if not torch.cuda.is_available() or torch.cuda.get_device_capability()[0] < 7:
+    HAS_MULTI_TENSOR = False
+    HAS_FUSED_ROUNDING = False
 
 logger = logging.getLogger(__name__)
 
