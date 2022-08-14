@@ -1,19 +1,10 @@
-# This workflow will upload a Python Package using Twine when a release is created
+# This workflow will upload a Python Package to Release asset
 # For more information see: https://help.github.com/en/actions/language-and-framework-guides/using-python-with-github-actions#publishing-to-package-registries
 
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
 
 name: Python Package
 
 on:
-  # push:
-    # branches:
-    #   - test-ontag
-    # tags:
-    #   - '**'
   create:
     tags:
       - '**'
@@ -23,11 +14,6 @@ jobs:
     name: Create Release
     runs-on: ubuntu-latest
     steps:
-      # - name: Extract branch name
-      #   id: extract_branch
-      #   run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-      #   shell: bash
-
       - name: Get the tag version
         id: extract_branch
         run: echo ::set-output name=branch::${GITHUB_REF#refs/tags/}
@@ -41,23 +27,9 @@ jobs:
         with:
           tag_name: ${{ steps.extract_branch.outputs.branch }}
           release_name: ${{ steps.extract_branch.outputs.branch }}
-
-    # - name: 'Check tag exists'
-    #   id: tagged
-    #   shell: bash
-    #   run: |
-    #     git fetch --depth=1 origin +refs/tags/*:refs/tags/*
-    #     git show-ref --tags --verify --quiet -- "refs/tags/python-${{ matrix.python-version }}-cu${{ matrix.cuda-version }}-torch${{ matrix.torch-version }}" && echo "::set-output name=tagged::0" || echo "::set-output name=tagged::1"
-
-    # - name: Create Relase Tag
-    #   if: steps.tagged.outputs.tagged == 1
-    #   id: create-tag
-    #   uses: rickstaa/action-create-tag@v1
-    #   with:
-    #     tag: python-${{ matrix.python-version }}-cu${{ matrix.cuda-version }}-torch${{ matrix.torch-version }}
-
       
   wheel:
+    name: Build Wheel
     runs-on: ${{ matrix.os }}
     needs: release
     
@@ -69,12 +41,9 @@ jobs:
           python-version: ['3.7', '3.8', '3.9', '3.10']
           torch-version: [1.11.0, 1.12.0, 1.12.1]
           cuda-version: ['113', '116']
-          # to add 102 on ubuntu18.04
           exclude:
             - torch-version: 1.11.0
               cuda-version: '116'
-            - torch-version: 1.12.0
-              cuda-version: '115'
 
     steps:
       - name: Checkout
@@ -120,11 +89,6 @@ jobs:
           python -c "from torch.utils import cpp_extension; print (cpp_extension.CUDA_HOME)"
         shell:
           bash
-
-      # - name: Extract branch name
-      #   id: extract_branch
-      #   run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-      #   shell: bash
       
       - name: Get the tag version
         id: extract_branch
@@ -137,17 +101,6 @@ jobs:
           tag_name: ${{ steps.extract_branch.outputs.branch }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
- 
-      # - name: Test
-      #   run: |
-      #     mkdir dist
-      #     echo ${{ github.sha }} > ./dist/unicore-0.0.1a0-linux_x86_64.whl
-      #     tmpname=cu${{ matrix.cuda-version }}torch${{ matrix.torch-version }}
-      #     wheel_name=$(ls dist/*whl | xargs -n 1 basename | sed "s/-/+$tmpname-/2")
-      #     ls dist/*whl |xargs -I {} mv {} ${wheel_name}
-      #     echo "wheel_name=${wheel_name}" >> $GITHUB_ENV
-      #   shell:
-      #     bash
 
       - name: Build wheel
         run: |
@@ -161,15 +114,6 @@ jobs:
           wheel_name=$(ls dist/*whl | xargs -n 1 basename | sed "s/-/+$tmpname-/2")
           ls dist/*whl |xargs -I {} mv {} ${wheel_name}
           echo "wheel_name=${wheel_name}" >> $GITHUB_ENV
-
-      # - name: Create Release
-      #   id: create_release
-      #   uses: actions/create-release@v1
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
-      #   with:
-      #     tag_name: v1-test
-      #     release_name: Release v1-test
       
       - name: Upload Release Asset
         id: upload_release_asset 
@@ -178,24 +122,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           # upload_url: ${{ needs.create_release.outputs.upload_url }}
-          # check here why didn't works
+          # why didn't works
           upload_url: ${{ steps.get_current_release.outputs.upload_url }}
           asset_path: ./${{env.wheel_name}}
           asset_name: ${{env.wheel_name}}
           asset_content_type: application/*
-
-      # - name: 'Check Release exists'
-      #   id: release
-      #   uses: phish108/release-check@1.0.11
-      #   with: 
-      #     github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      # - name: Create Release With Asset
-      #   if: ${{ steps.release.outputs.proceed }} == false
-      #   id: Release-AIO
-      #   uses: Hs1r1us/Release-AIO@v1.0
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   with:
-      #     tag_name: python-${{ matrix.python-version }}-cu${{ matrix.cuda-version }}-torch${{ matrix.torch-version }}
-      #     asset_files: './dist'
