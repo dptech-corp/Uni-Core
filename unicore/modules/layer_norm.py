@@ -45,6 +45,7 @@ class FusedLayerNormFastFunction(torch.autograd.Function):
         weight_, bias_, ctx.eps)
     return grad_input, grad_weight, grad_bias, None, None
 
+FUSED_LAYER_NORM_SUPPORT_DIM = set([64, 128, 256, 320, 384, 512, 640, 768, 1024, 1280, 1536, 1792, 2048, 2560, 5120])
 
 class LayerNorm(torch.nn.Module):
     def __init__(self, normalized_shape, eps=1e-5, elementwise_affine=True):
@@ -57,17 +58,24 @@ class LayerNorm(torch.nn.Module):
         self.weight = Parameter(torch.Tensor(*normalized_shape))
         self.bias = Parameter(torch.Tensor(*normalized_shape))
         self.reset_parameters()
+        def torch_layer_norm(input):
+            return F.layer_norm(
+                input, self.normalized_shape, self.weight, self.bias, self.eps)
+        def fused_layer_norm(input):
+            if input.is_cuda():
+                return FusedLayerNormFastFunction.apply(
+                    input, self.weight, self.bias, self.normalized_shape, self.eps)
+            else:
+                return F.layer_norm(
+                    input, self.normalized_shape, self.weight, self.bias, self.eps)
+        self.func = torch_layer_norm if (not HAS_LAYER_NORM or normalized_shape[0] not in FUSED_LAYER_NORM_SUPPORT_DIM) else fused_layer_norm
 
     def reset_parameters(self):
         init.ones_(self.weight)
         init.zeros_(self.bias)
 
     def forward(self, input):
-        if not input.is_cuda or not HAS_LAYER_NORM:
-            return F.layer_norm(
-                input, self.normalized_shape, self.weight, self.bias, self.eps)
-        return FusedLayerNormFastFunction.apply(
-            input, self.weight, self.bias, self.normalized_shape, self.eps)
+        return self.func(input)
 
     def extra_repr(self):
         return '{normalized_shape}, eps={eps}, ' \
