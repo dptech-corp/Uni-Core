@@ -7,7 +7,6 @@
 import math
 import torch
 import torch.nn.functional as F
-import pandas as pd
 from unicore import metrics
 from unicore.losses import UnicoreLoss, register_loss
 
