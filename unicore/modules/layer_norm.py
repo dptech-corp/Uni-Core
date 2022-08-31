@@ -63,6 +63,19 @@ class LayerNorm(torch.nn.Module):
                 input, self.normalized_shape, self.weight.type(input.dtype), self.bias.type(input.dtype), self.eps)
         def fused_layer_norm(input):
             if input.is_cuda:
+                # pre-defined CUDA kernels only work for certain dims. pad if not matched
+                if input.shape[-1] not in FUSED_LAYER_NORM_SUPPORT_DIM:
+                    prev_dim = input.shape[-1]
+                    viable_dims = [x for x in FUSED_LAYER_NORM_SUPPORT_DIM if x >= prev_dim]
+                    min_viable = min(viable_dims, key=lambda x: x - prev_dim)
+                    input = F.pad(input, (0, min_viable - prev_dim))
+
+                    outs = FusedLayerNormFastFunction.apply(
+                        input, self.weight.type(input.dtype), self.bias.type(input.dtype), self.normalized_shape,
+                        self.eps)
+
+                    return outs[..., :prev_dim]
+
                 return FusedLayerNormFastFunction.apply(
                     input, self.weight.type(input.dtype), self.bias.type(input.dtype), self.normalized_shape, self.eps)
             else:
