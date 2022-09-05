@@ -717,7 +717,7 @@ class Trainer(object):
 
             with torch.autograd.profiler.record_function("optimizer"):
                 # fixed the seed in case for the stochastic rounding in different ranks
-                with utils.torch_seed(self.args.seed, self.get_num_updates(), -1):
+                with utils.torch_seed(self.args.seed, self.get_num_updates()):
                     # take an optimization step
                     self.task.optimizer_step(
                         self.optimizer,
@@ -733,16 +733,22 @@ class Trainer(object):
             # out where it fails
             self.zero_grad()
             with NanDetector(self.get_model()):
-                for _, sample in enumerate(samples):
+                for i, sample in enumerate(samples):
                     sample, _ = self._prepare_sample(sample)
-                    self.task.train_step(
-                        sample,
-                        self.model,
-                        self.loss,
-                        self.optimizer,
+                    with utils.torch_seed(
+                        self.args.seed,
                         self.get_num_updates(),
-                        ignore_grad=False,
-                    )
+                        i,
+                        self.data_parallel_rank,
+                    ):
+                        self.task.train_step(
+                            sample,
+                            self.model,
+                            self.loss,
+                            self.optimizer,
+                            self.get_num_updates(),
+                            ignore_grad=False,
+                        )
             raise
         except OverflowError as e:
             overflow = True
