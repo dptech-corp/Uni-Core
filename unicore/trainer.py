@@ -486,7 +486,9 @@ class Trainer(object):
             )
 
         else:
-            logger.info("No existing checkpoint found {}".format(filename))
+            logger.info(
+                "Loaded checkpoint {}".format(filename)
+            )
 
         return extra_state
 
