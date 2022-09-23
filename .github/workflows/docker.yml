@@ -30,11 +30,11 @@ jobs:
         with:
           context: ./docker/cu113/
           push: true
-          tags: dptechnology/unicore:${{ github.ref_name }}-pytorch1.11.0-cuda11.3
+          tags: dptechnology/unicore:${{ github.ref_name }}-pytorch1.11.0-cuda11.3-flashattn
       -
         name: Build and push cu116
         uses: docker/build-push-action@v3
         with:
           context: ./docker/cu116/
           push: true
-          tags: dptechnology/unicore:${{ github.ref_name }}-pytorch1.12.1-cuda11.6
+          tags: dptechnology/unicore:${{ github.ref_name }}-pytorch1.12.1-cuda11.6-flashattn

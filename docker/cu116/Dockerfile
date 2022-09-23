@@ -123,3 +123,12 @@ RUN ldconfig && \
     apt-get autoremove && \
     rm -rf /var/lib/apt/lists/* /tmp/* && \
     conda clean -ya
+
+# ==================================================================
+# Attention
+# ------------------------------------------------------------------
+RUN cd /tmp && \
+    git clone https://github.com/HazyResearch/flash-attention.git && \
+    cd flash-attention && \
+    python setup.py install &&\
+    rm -rf  /tmp/*
