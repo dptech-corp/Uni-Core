@@ -31,10 +31,3 @@ jobs:
           context: ./docker/cu116/
           push: true
           tags: dptechnology/unicore:latest-pytorch1.12.1-cuda11.6
-      -
-        name: Build and push cu116 with rdma
-        uses: docker/build-push-action@v3
-        with:
-          context: ./docker/rdma/
-          push: true
-          tags: dptechnology/unicore:latest-pytorch1.12.1-cuda11.6-rdma
