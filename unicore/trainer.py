@@ -366,6 +366,7 @@ class Trainer(object):
                 dist_device=self.device,
             )
 
+        had_loaded_model = False
         if bexists:
             state = None
             if is_master:
@@ -396,6 +397,7 @@ class Trainer(object):
                     )
                     # save memory for later steps
                     del state["model"]
+                    had_loaded_model = True
 
                 if errors.missing_keys:
                     logger.warning(
@@ -485,10 +487,10 @@ class Trainer(object):
                 )
             )
 
+        elif had_loaded_model:
+            logger.info("Loaded checkpoint {}".format(filename))
         else:
-            logger.info(
-                "Loaded checkpoint {}".format(filename)
-            )
+            logger.info("No existing checkpoint found {}".format(filename))
 
         return extra_state
 
