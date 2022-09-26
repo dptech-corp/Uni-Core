@@ -49,8 +49,9 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
         debhelper \
         nfs-common
 
-RUN  pip uninstall -y torch && \
-pip uninstall -y torch && \
+RUN  pip uninstall -y torch torchvision torchtext && \
+pip uninstall -y torch torchvision torchtext && \
+rm -rf ~/.cache/pip && \
 conda clean -ya
 
 RUN conda install -y pyyaml tensorboardX && \
@@ -66,17 +67,15 @@ ENV TORCH_CUDA_ARCH_LIST "7.0;7.5;8.0"
 RUN conda install -y ninja typing && \
     conda clean -ya
 
-RUN conda install pytorch=1.12.1 cudatoolkit=11.6 -c pytorch -c conda-forge && \
-    conda clean -ya
+RUN pip3 install --no-cache-dir torch==1.12.1 --extra-index-url https://download.pytorch.org/whl/cu116 && rm -rf ~/.cache/pip 
 
 RUN cd /tmp && \
     git clone https://github.com/dptech-corp/Uni-Core && \
     cd Uni-Core && \
-    python setup.py install &&\
-    rm -rf  /tmp/*
+    python setup.py install && \
+    rm -rf  /tmp/* && rm -rf ~/.cache/pip 
 
-RUN pip install --no-cache-dir tokenizers lmdb biopython ml-collections timeout-decorator urllib3 tree dm-tree
-
+RUN pip3 install --no-cache-dir tokenizers lmdb biopython ml-collections timeout-decorator urllib3 tree dm-tree && rm -rf ~/.cache/pip 
 
 RUN ldconfig && \
     apt-get clean && \
