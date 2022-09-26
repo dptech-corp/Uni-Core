@@ -53,7 +53,7 @@ RUN  pip uninstall -y torch && \
 pip uninstall -y torch && \
 conda clean -ya
 
-RUN conda install -y scipy scikit-learn pyyaml tensorboard tensorboardX && \
+RUN conda install -y pyyaml tensorboardX && \
     conda clean -ya
 
 # RUN ldconfig
@@ -63,7 +63,7 @@ RUN conda install -y scipy scikit-learn pyyaml tensorboard tensorboardX && \
 # # ------------------------------------------------------------------
 ENV TORCH_CUDA_ARCH_LIST "7.0;7.5;8.0"
 
-RUN conda install -y numpy pyyaml scipy ipython mkl mkl-include ninja cython typing pandas && \
+RUN conda install -y ninja typing && \
     conda clean -ya
 
 RUN conda install pytorch=1.12.1 cudatoolkit=11.6 -c pytorch -c conda-forge && \
