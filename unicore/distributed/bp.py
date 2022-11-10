@@ -36,10 +36,13 @@ def all_reduce(tensor):
 class SyncEvoformerResults(torch.autograd.Function):
     """ A PyLayer Op broadcast gradient in backward stage """
     @staticmethod
-    def forward(ctx, outer, msa, pair):
+    def forward(ctx, outer, msa, pair, training):
         broadcast(outer, 0)
         if scg.get_bp_rank_in_group() == 1:
-            pair += outer
+            if training:
+                pair = pair + outer
+            else:
+                pair += outer
         broadcast(pair, 1)
         broadcast(msa, 0)
         return msa.clone(), pair.clone()
@@ -57,7 +60,7 @@ class SyncEvoformerResults(torch.autograd.Function):
         
         return outer_grad.clone(), msa_grad.clone(), pair_grad.clone()
 
-def sync_evoformer_results(outer, msa, pair):
+def sync_evoformer_results(outer, msa, pair, training):
     """ a warpper for boradcast gradient in backward stage """
     if scg.get_bp_world_size() == 1:
         return msa, pair
@@ -65,6 +68,6 @@ def sync_evoformer_results(outer, msa, pair):
     if torch.is_grad_enabled() and outer.requires_grad and msa.requires_grad and pair.requires_grad:
         return msa, pair
 
-    msa, pair = SyncEvoformerResults.apply(outer, msa, pair)
+    msa, pair = SyncEvoformerResults.apply(outer, msa, pair, training)
         
     return msa, pair
