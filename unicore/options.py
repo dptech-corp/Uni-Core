@@ -294,6 +294,7 @@ def add_distributed_training_args(parser):
                        help="number of GPUs in each node. An allreduce operation across GPUs in "
                             "a node is very fast. Hence, we do allreduce across GPUs in a node, "
                             "and gossip across different nodes")
+    group.add_argument('--bp-degree', default=1, type=int)
     # fmt: on
     return group
 
