@@ -170,9 +170,9 @@ class Trainer(object):
         # add ema
         if args.validate_with_ema:
             assert args.ema_decay > 0, "valid with ema must with ema_decay > 0"
+            self.ema_model = model_fp32.to(self.device)
         if args.ema_decay > 0 and (self.data_parallel_rank == 0 or args.validate_with_ema):
             self.ema = ExponentialMovingAverage(self._model, decay=args.ema_decay)
-            self.ema_model = model_fp32.to(self.device)
         else:
             self.ema = None
         metrics.log_start_time("wall", priority=790, round=2)
