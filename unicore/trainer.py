@@ -23,66 +23,50 @@ from unicore.logging import meters, metrics
 from unicore.nan_detector import NanDetector
 from unicore.optim import lr_scheduler
 from unicore.utils import tensor_tree_map
+from unicore.optim.fp16_optimizer import pad_numel
 
 
 logger = logging.getLogger(__name__)
 
 
-class ExponentialMovingAverage:
-    """
-    Maintains moving averages of parameters with exponential decay
-
-    At each step, the stored copy `copy` of each parameter `param` is
-    updated as follows:
-
-        `copy = decay * copy + (1 - decay) * param`
-
-    where `decay` is an attribute of the ExponentialMovingAverage object.
-    """
-
-    def __init__(self, model: torch.nn.Module, decay: float):
-        """
-        Args:
-            model:
-                A torch.nn.Module whose parameters are to be tracked
-            decay:
-                A value (usually close to 1.) by which updates are
-                weighted as part of the above formula
-        """
-        super(ExponentialMovingAverage, self).__init__()
-        with torch.no_grad():
-            clone_param = lambda t: t.clone().detach().float()
-            self.params = tensor_tree_map(clone_param, model.state_dict())
+class ExponentialMovingAverageModel:
+    def __init__(self, model, decay, ordered_names, init_param, device):
+        self.model_ema = deepcopy(model).to(device)
         self.decay = decay
+        self.param = self.flatten_parameters(ordered_names, init_param)
 
-    def _update_state_dict_(self, update, state_dict):
+    def flatten_parameters(self, ordered_names, init_param):
+        name2param = dict()
+        for n, p in self.model_ema.named_parameters():
+            name2param[n] = p
+        cur_params = [name2param[n] for n in ordered_names]
+        total_param_size = sum(pad_numel(p.data.numel()) for p in cur_params)
+        flatten_param = cur_params[0].new(0).float().new_zeros(total_param_size)
+
+        offset = 0
+        for p in cur_params:
+            numel = p.data.numel()
+            flatten_param[offset : offset + numel].copy_(p.data.view(-1))
+            p.data = flatten_param.data[offset : offset + numel].view(*p.shape)
+            offset += pad_numel(numel)
+        flatten_param = torch.nn.Parameter(flatten_param)
+        assert torch.allclose(init_param, flatten_param, atol=0.001), "ema init error!"
+        torch.cuda.empty_cache()
+        return flatten_param
+
+    def update(self, new_param):
         with torch.no_grad():
-            for k, v in update.items():
-                if state_dict[k].device != v.device:
-                    state_dict[k] = state_dict[k].to(v.device)
-                stored = state_dict[k]
-                if not isinstance(v, torch.Tensor):
-                    self._update_state_dict_(v, stored)
-                else:
-                    diff = stored - v.float()
-                    diff *= 1 - self.decay
-                    stored -= diff
+            diff = self.param - new_param
+            diff *= 1 - self.decay
+            self.param -= diff
 
-    def update(self, model: torch.nn.Module) -> None:
-        """
-        Updates the stored parameters using the state dict of the provided
-        module. The module should have the same structure as that used to
-        initialize the ExponentialMovingAverage object.
-        """
-        self._update_state_dict_(model.state_dict(), self.params)
-
-    def load_state_dict(self, state_dict: dict) -> None:
-        self.params = state_dict["params"]
+    def load_state_dict(self, state_dict):
+        self.param = state_dict["param"]
         self.decay = state_dict["decay"] if "decay" in state_dict else self.decay
 
-    def state_dict(self) -> dict:
+    def state_dict(self):
         return {
-            "params": self.params,
+            "params": self.param,
             "decay": self.decay,
         }
 
@@ -170,9 +154,21 @@ class Trainer(object):
         # add ema
         if args.validate_with_ema:
             assert args.ema_decay > 0, "valid with ema must with ema_decay > 0"
-            self.ema_model = model_fp32.to(self.device)
-        if args.ema_decay > 0 and (self.data_parallel_rank == 0 or args.validate_with_ema):
-            self.ema = ExponentialMovingAverage(self._model, decay=args.ema_decay)
+
+        if args.ema_decay > 0 and (
+            self.data_parallel_rank == 0 or args.validate_with_ema
+        ):
+            assert isinstance(
+                self.optimizer, optim.FP16Optimizer
+            ), "valid with ema must with fp16 optimizer"
+            self.ema = ExponentialMovingAverageModel(
+                model_fp32,
+                args.ema_decay,
+                self._optimizer_ordered_name,
+                self._optimizer.fp32_params,
+                self.device,
+            )
+
         else:
             self.ema = None
         metrics.log_start_time("wall", priority=790, round=2)
@@ -267,8 +263,8 @@ class Trainer(object):
     def _build_optimizer(self):
         params = list(
             filter(
-                lambda p: p.requires_grad,
-                chain(self.model.parameters(), self.loss.parameters()),
+                lambda p: p[1].requires_grad,
+                chain(self.model.named_parameters(), self.loss.named_parameters()),
             )
         )
         if self.args.per_sample_clip_norm > 0:
@@ -280,7 +276,10 @@ class Trainer(object):
                     "NOTE: your device does NOT support faster training with --fp16, "
                     "please switch to FP32 which is likely to be faster"
                 )
-            self._optimizer = optim.FP16Optimizer.build_optimizer(self.args, params)
+            self._optimizer, ordered_name = optim.FP16Optimizer.build_optimizer(
+                self.args, params
+            )
+            self._optimizer_ordered_name = ordered_name
 
             if self.args.allreduce_fp32_grad:
                 assert self.args.ddp_backend == "no_c10d"
@@ -734,7 +733,7 @@ class Trainer(object):
                     )
             if self.ema is not None:
                 with torch.autograd.profiler.record_function("ema"):
-                    self.ema.update(self.model)
+                    self.ema.update(self.optimizer.fp32_params)
 
         except FloatingPointError:
             # re-run the forward and backward pass with hooks attached to print

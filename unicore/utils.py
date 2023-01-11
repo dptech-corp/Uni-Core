@@ -428,8 +428,7 @@ def validate_with_ema(trainer, ema=False):
         yield
         return 
     _wrapped_model = trainer._wrapped_model
-    trainer.ema_model.load_state_dict(trainer.ema.params)
-    trainer._wrapped_model = trainer.ema_model
+    trainer._wrapped_model = trainer.ema.model_ema
     try:
         yield
     finally:

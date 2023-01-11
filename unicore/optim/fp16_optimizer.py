@@ -35,7 +35,7 @@ class _FP16OptimizerMixin(object):
     def build_fp32_params(cls, args, params):
         # create FP32 copy of parameters and grads
         total_param_size = sum([p.data.numel() for p in params])
-        fp32_params = params[0].new(0).float().new(total_param_size)
+        fp32_params = params[0].new(0).float().new_zeros(total_param_size)
         offset = 0
         for p in params:
             numel = p.data.numel()
@@ -46,12 +46,15 @@ class _FP16OptimizerMixin(object):
         return fp32_params
 
     @classmethod
-    def flatten_fp16_parameters(cls, args, params):
+    def flatten_fp16_parameters(cls, args, named_params):
         dtype_grouped_params = {}
-        for p in params:
+        dtype_grouped_names = {}
+        for n, p in named_params:
             if p.dtype not in dtype_grouped_params:
+                dtype_grouped_names[p.dtype] = []
                 dtype_grouped_params[p.dtype] = []
             dtype_grouped_params[p.dtype].append(p)
+            dtype_grouped_names[p.dtype].append(n)
 
         flatten_params = {}
         for dtype in dtype_grouped_params:
@@ -80,7 +83,12 @@ class _FP16OptimizerMixin(object):
                 )
                 offset += pad_numel(numel)
         torch.cuda.empty_cache()
-        return list(flatten_params.values())
+        param_list = []
+        ordered_names = []
+        for dtype, value in flatten_params.items():
+            param_list.append(value)
+            ordered_names.extend(dtype_grouped_names[dtype])
+        return param_list, ordered_names
 
     def state_dict(self):
         """Return the optimizer's state dict."""
@@ -276,7 +284,7 @@ class FP16Optimizer(_FP16OptimizerMixin, optim.UnicoreOptimizer):
             self.scaler = None
 
     @classmethod
-    def build_optimizer(cls, args, params, **kwargs):
+    def build_optimizer(cls, args, named_params, **kwargs):
         """
         Args:
             args : unicore args
@@ -284,11 +292,11 @@ class FP16Optimizer(_FP16OptimizerMixin, optim.UnicoreOptimizer):
         """
         flatten = not getattr(args, "fp16_no_flatten_grads", False)
         assert flatten
-        check_param_device(params)
-        params = cls.flatten_fp16_parameters(args, params)
+        check_param_device([x[1] for x in named_params])
+        params, ordered_names = cls.flatten_fp16_parameters(args, named_params)
         fp32_params = cls.build_fp32_params(args, params)
         fp32_optimizer = optim.build_optimizer(args, [fp32_params])
-        return cls(args, params, fp32_optimizer, fp32_params, **kwargs)
+        return cls(args, params, fp32_optimizer, fp32_params, **kwargs), ordered_names
 
     @property
     def optimizer(self):
