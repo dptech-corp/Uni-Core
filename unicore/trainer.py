@@ -97,7 +97,6 @@ class Trainer(object):
         # copy model and loss to current device/dtype
         self._loss = loss
         self._model = model
-        model_fp32 = deepcopy(model)
         if args.fp16:
             self._loss = self._loss.half()
             self._model = self._model.half()
@@ -162,7 +161,7 @@ class Trainer(object):
                 self.optimizer, optim.FP16Optimizer
             ), "valid with ema must with fp16 optimizer"
             self.ema = ExponentialMovingAverageModel(
-                model_fp32,
+                deepcopy(model).float(),
                 args.ema_decay,
                 self._optimizer_ordered_name,
                 self._optimizer.fp32_params,
