@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 class ExponentialMovingAverageModel:
-    def __init__(self, model, decay, init_param):
+    def __init__(self, model, decay, init_param=None):
         self.model_ema = deepcopy(model).float()
         self.decay = decay
         self.param = self.flatten_parameters(model, init_param)
@@ -61,7 +61,8 @@ class ExponentialMovingAverageModel:
             p.data = flatten_param.data[offset : offset + numel].view(*p.shape)
             offset += pad_numel(numel)
         flatten_param = torch.nn.Parameter(flatten_param)
-        assert torch.allclose(init_param, flatten_param), "ema init error!"
+        if init_param is not None:
+            assert torch.allclose(init_param, flatten_param), "ema init error!"
         torch.cuda.empty_cache()
         return flatten_param
 
@@ -442,7 +443,7 @@ class Trainer(object):
                 logger.info(
                     f"Cannot find EMA state in checkpoint, load model weight to ema directly"
                 )
-                self.ema = ExponentialMovingAverage(self._model, decay=self.ema.decay)
+                self.ema = ExponentialMovingAverageModel(self._model, decay=self.ema.decay)
 
         if last_optim_state is not None and not reset_optimizer:
             # rebuild optimizer after loading model, since params may have changed
