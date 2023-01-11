@@ -30,12 +30,23 @@ logger = logging.getLogger(__name__)
 
 
 class ExponentialMovingAverageModel:
-    def __init__(self, model, decay, ordered_names, init_param, device):
-        self.model_ema = deepcopy(model).to(device)
+    def __init__(self, model, decay, init_param):
+        self.model_ema = deepcopy(model).float()
         self.decay = decay
-        self.param = self.flatten_parameters(ordered_names, init_param)
+        self.param = self.flatten_parameters(model, init_param)
 
-    def flatten_parameters(self, ordered_names, init_param):
+    def flatten_parameters(self, model, init_param):
+        # get ordered name
+        dtype_grouped_names = dict()
+        ordered_dtype = []
+        for n, p in model.named_parameters():
+            if p.dtype not in dtype_grouped_names:
+                dtype_grouped_names[p.dtype] = []
+                ordered_dtype.append(p.dtype)
+            dtype_grouped_names[p.dtype].append(n)
+
+        ordered_names = list(chain(*(dtype_grouped_names[n] for n in ordered_dtype)))
+
         name2param = dict()
         for n, p in self.model_ema.named_parameters():
             name2param[n] = p
@@ -50,7 +61,7 @@ class ExponentialMovingAverageModel:
             p.data = flatten_param.data[offset : offset + numel].view(*p.shape)
             offset += pad_numel(numel)
         flatten_param = torch.nn.Parameter(flatten_param)
-        assert torch.allclose(init_param, flatten_param, atol=0.001), "ema init error!"
+        assert torch.allclose(init_param, flatten_param), "ema init error!"
         torch.cuda.empty_cache()
         return flatten_param
 
@@ -61,12 +72,12 @@ class ExponentialMovingAverageModel:
             self.param -= diff
 
     def load_state_dict(self, state_dict):
-        self.param = state_dict["param"]
+        self.model_ema.load_state_dict(state_dict["params"])
         self.decay = state_dict["decay"] if "decay" in state_dict else self.decay
 
     def state_dict(self):
         return {
-            "params": self.param,
+            "params": self.model_ema.state_dict(),
             "decay": self.decay,
         }
 
@@ -161,11 +172,9 @@ class Trainer(object):
                 self.optimizer, optim.FP16Optimizer
             ), "valid with ema must with fp16 optimizer"
             self.ema = ExponentialMovingAverageModel(
-                deepcopy(model).float(),
+                model,
                 args.ema_decay,
-                self._optimizer_ordered_name,
                 self._optimizer.fp32_params,
-                self.device,
             )
 
         else:
@@ -262,8 +271,8 @@ class Trainer(object):
     def _build_optimizer(self):
         params = list(
             filter(
-                lambda p: p[1].requires_grad,
-                chain(self.model.named_parameters(), self.loss.named_parameters()),
+                lambda p: p.requires_grad,
+                chain(self.model.parameters(), self.loss.parameters()),
             )
         )
         if self.args.per_sample_clip_norm > 0:
@@ -275,10 +284,7 @@ class Trainer(object):
                     "NOTE: your device does NOT support faster training with --fp16, "
                     "please switch to FP32 which is likely to be faster"
                 )
-            self._optimizer, ordered_name = optim.FP16Optimizer.build_optimizer(
-                self.args, params
-            )
-            self._optimizer_ordered_name = ordered_name
+            self._optimizer = optim.FP16Optimizer.build_optimizer(self.args, params)
 
             if self.args.allreduce_fp32_grad:
                 assert self.args.ddp_backend == "no_c10d"

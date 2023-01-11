@@ -46,22 +46,21 @@ class _FP16OptimizerMixin(object):
         return fp32_params
 
     @classmethod
-    def flatten_fp16_parameters(cls, args, named_params):
+    def flatten_fp16_parameters(cls, args, params):
         dtype_grouped_params = {}
-        dtype_grouped_names = {}
-        for n, p in named_params:
+        ordered_dtype = [] # for sort dtype
+        for p in params:
             if p.dtype not in dtype_grouped_params:
-                dtype_grouped_names[p.dtype] = []
                 dtype_grouped_params[p.dtype] = []
+                ordered_dtype.append(p.dtype)
             dtype_grouped_params[p.dtype].append(p)
-            dtype_grouped_names[p.dtype].append(n)
 
         flatten_params = {}
         for dtype in dtype_grouped_params:
             cur_params = dtype_grouped_params[dtype]
             total_param_size = sum(pad_numel(p.data.numel()) for p in cur_params)
             flatten_params[dtype] = (
-                cur_params[0].new(0).type(dtype).new(total_param_size)
+                cur_params[0].new(0).type(dtype).new_zeros(total_param_size)
             )
             offset = 0
             for p in cur_params:
@@ -83,12 +82,7 @@ class _FP16OptimizerMixin(object):
                 )
                 offset += pad_numel(numel)
         torch.cuda.empty_cache()
-        param_list = []
-        ordered_names = []
-        for dtype, value in flatten_params.items():
-            param_list.append(value)
-            ordered_names.extend(dtype_grouped_names[dtype])
-        return param_list, ordered_names
+        return [flatten_params[dtype] for dtype in ordered_dtype]
 
     def state_dict(self):
         """Return the optimizer's state dict."""
@@ -99,7 +93,6 @@ class _FP16OptimizerMixin(object):
 
     def load_state_dict(self, state_dict, optimizer_overrides=None):
         """Load an optimizer state dict.
-
         In general we should prefer the configuration of the existing optimizer
         instance (e.g., learning rate) over that found in the state_dict. This
         allows us to resume training from a checkpoint using a new set of
@@ -111,7 +104,6 @@ class _FP16OptimizerMixin(object):
 
     def backward(self, loss):
         """Computes the sum of gradients of the given tensor w.r.t. graph leaves.
-
         Compared to :func:`unicore.optim.UnicoreOptimizer.backward`, this
         function additionally dynamically scales the loss to avoid gradient
         underflow.
@@ -284,7 +276,7 @@ class FP16Optimizer(_FP16OptimizerMixin, optim.UnicoreOptimizer):
             self.scaler = None
 
     @classmethod
-    def build_optimizer(cls, args, named_params, **kwargs):
+    def build_optimizer(cls, args, params, **kwargs):
         """
         Args:
             args : unicore args
@@ -292,11 +284,11 @@ class FP16Optimizer(_FP16OptimizerMixin, optim.UnicoreOptimizer):
         """
         flatten = not getattr(args, "fp16_no_flatten_grads", False)
         assert flatten
-        check_param_device([x[1] for x in named_params])
-        params, ordered_names = cls.flatten_fp16_parameters(args, named_params)
+        check_param_device(params)
+        params = cls.flatten_fp16_parameters(args, params)
         fp32_params = cls.build_fp32_params(args, params)
         fp32_optimizer = optim.build_optimizer(args, [fp32_params])
-        return cls(args, params, fp32_optimizer, fp32_params, **kwargs), ordered_names
+        return cls(args, params, fp32_optimizer, fp32_params, **kwargs)
 
     @property
     def optimizer(self):
