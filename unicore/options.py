@@ -194,6 +194,7 @@ def get_parser(desc, default_task='test'):
                         "main method can return a value (useful for sweeps)")
     parser.add_argument('--profile', action='store_true', help="enable autograd profiler emit_nvtx")
     parser.add_argument('--ema-decay', default=-1.0, type=float, help="enable moving average for model weights")
+    parser.add_argument("--validate-with-ema", default=False, action="store_true")
     
 
     from unicore.registry import REGISTRIES
