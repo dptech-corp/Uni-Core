@@ -137,7 +137,8 @@ def parse_args_and_arch(
         args.no_seed_provided = True
     else:
         args.no_seed_provided = False
-
+    
+    args.validate_with_ema = getattr(args, "validate_with_ema", False)
     # Apply architecture configuration.
     if hasattr(args, "arch") and args.arch in ARCH_CONFIG_REGISTRY:
         ARCH_CONFIG_REGISTRY[args.arch](args)
@@ -194,7 +195,7 @@ def get_parser(desc, default_task='test'):
                         "main method can return a value (useful for sweeps)")
     parser.add_argument('--profile', action='store_true', help="enable autograd profiler emit_nvtx")
     parser.add_argument('--ema-decay', default=-1.0, type=float, help="enable moving average for model weights")
-    parser.add_argument("--validate-with-ema", default=False, action="store_true")
+    parser.add_argument("--validate-with-ema", action="store_true")
     
 
     from unicore.registry import REGISTRIES
