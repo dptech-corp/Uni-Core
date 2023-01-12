@@ -115,7 +115,7 @@ class Trainer(object):
         ):
             assert isinstance(
                 self.optimizer, optim.FP16Optimizer
-            ), "valid with ema must with fp16 optimizer"
+            ), "ema must with fp16 optimizer"
             self.ema = ExponentialMovingAverageModel(
                 model,
                 args.ema_decay,
