@@ -15,10 +15,11 @@ class ExponentialMovingAverageModel:
         dtype_grouped_names = dict()
         ordered_dtype = []
         for n, p in model.named_parameters():
-            if p.dtype not in dtype_grouped_names:
-                dtype_grouped_names[p.dtype] = []
-                ordered_dtype.append(p.dtype)
-            dtype_grouped_names[p.dtype].append(n)
+            if p.requires_grad:
+                if p.dtype not in dtype_grouped_names:
+                    dtype_grouped_names[p.dtype] = []
+                    ordered_dtype.append(p.dtype)
+                dtype_grouped_names[p.dtype].append(n)
 
         ordered_names = list(chain(*(dtype_grouped_names[n] for n in ordered_dtype)))
 
