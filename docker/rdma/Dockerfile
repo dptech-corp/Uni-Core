@@ -47,7 +47,8 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
         fakeroot \
         devscripts \
         debhelper \
-        nfs-common
+        nfs-common \
+        bc
 
 RUN  pip uninstall -y torch torchvision torchtext && \
 pip uninstall -y torch torchvision torchtext && \
