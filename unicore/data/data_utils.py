@@ -94,8 +94,8 @@ def numpy_seed(seed, *addl_seeds, key=None):
         for s in addl_seeds:
             check_seed(s)
         seed = int(hash((seed, *addl_seeds)) % 1e8)
-        if key is not None:
-            seed = int(hash((seed, str_hash(key))) % 1e8)
+    if key is not None:
+        seed = int(hash((seed, str_hash(key))) % 1e8)
     state = np.random.get_state()
     np.random.seed(seed)
     try:
