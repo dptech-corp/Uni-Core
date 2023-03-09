@@ -296,6 +296,7 @@ def eval_bool(x, default=False):
 def checkpoint_sequential(
     functions,
     input,
+    enabled=True,
 ):
     def wrap_tuple(a):
         return (a,) if type(a) is not tuple else a
@@ -313,7 +314,7 @@ def checkpoint_sequential(
 
     is_grad_enabled = torch.is_grad_enabled()
 
-    if is_grad_enabled:
+    if enabled and is_grad_enabled:
         for func in functions:
             input = torch.utils.checkpoint.checkpoint(get_wrap_exec(func), *input)
     else:
