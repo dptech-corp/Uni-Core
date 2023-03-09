@@ -14,11 +14,10 @@ import sys
 
 from setuptools import find_packages, setup
 
-
 DISABLE_CUDA_EXTENSION = False
 filtered_args = []
 for i, arg in enumerate(sys.argv):
-    if arg == '--disable_cuda_ext':
+    if arg == '--disable-cuda-ext':
         DISABLE_CUDA_EXTENSION = True
         continue
     filtered_args.append(arg)
