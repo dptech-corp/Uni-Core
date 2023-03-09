@@ -20,10 +20,7 @@ Installation
 
 You can use `python setup.py install` or `pip install .` to build Uni-Core from source. The CUDA version in the build environment should be the same as the one in PyTorch.
 
-```
-build optional flag:
-    --disable_extension: use `python setup.py install --disable_extension` to disalbe the cuda extension operator when cuda is not available.
-```
+You can also use `python setup.py install --disable_cuda_ext` to disalbe the cuda extension operator when cuda is not available.
 
 **Use pre-compiled python wheels**
 

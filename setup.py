@@ -15,11 +15,11 @@ import sys
 from setuptools import find_packages, setup
 
 
-DISABLE_EXTENSION = False
+DISABLE_CUDA_EXTENSION = False
 filtered_args = []
 for i, arg in enumerate(sys.argv):
-    if arg == '--disable_extension':
-        DISABLE_EXTENSION = True
+    if arg == '--disable_cuda_ext':
+        DISABLE_CUDA_EXTENSION = True
         continue
     filtered_args.append(arg)
 sys.argv = filtered_args
@@ -55,7 +55,7 @@ def get_cuda_bare_metal_version(cuda_dir):
 
     return raw_output, bare_metal_major, bare_metal_minor
 
-if not torch.cuda.is_available() and not DISABLE_EXTENSION:
+if not torch.cuda.is_available() and not DISABLE_CUDA_EXTENSION:
     print('\nWarning: Torch did not find available GPUs on this system.\n',
           'If your intention is to cross-compile, this is not an error.\n'
           'By default, it will cross-compile for Volta (compute capability 7.0), Turing (compute capability 7.5),\n'
@@ -82,7 +82,7 @@ ext_modules = []
 
 extras = {}
 
-if not DISABLE_EXTENSION:
+if not DISABLE_CUDA_EXTENSION:
     def get_cuda_bare_metal_version(cuda_dir):
         raw_output = subprocess.check_output([cuda_dir + "/bin/nvcc", "-V"], universal_newlines=True)
         output = raw_output.split()
