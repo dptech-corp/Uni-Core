@@ -58,6 +58,8 @@ jobs:
               cuda-version: '118'
             - torch-version: 1.13.1
               cuda-version: '113'
+            - torch-version: 1.13.1
+              cuda-version: '118'
             - torch-version: 2.0.0
               python-version: '3.7'
             - torch-version: 2.0.0
