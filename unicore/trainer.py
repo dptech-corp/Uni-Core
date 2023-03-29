@@ -320,6 +320,7 @@ class Trainer(object):
             )
 
         had_loaded_model = False
+        ema_loaded = False
         if bexists:
             state = None
             if is_master:
@@ -337,7 +338,6 @@ class Trainer(object):
             last_optim_state = state.get("last_optimizer_state", None)
             ema_state = state.get("ema", None)
 
-            ema_loaded = False
             # load model parameters
             try:
                 if self.args.load_from_ema:
