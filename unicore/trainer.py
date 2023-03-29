@@ -337,6 +337,7 @@ class Trainer(object):
             last_optim_state = state.get("last_optimizer_state", None)
             ema_state = state.get("ema", None)
 
+            ema_loaded = False
             # load model parameters
             try:
                 if self.args.load_from_ema:
@@ -344,6 +345,7 @@ class Trainer(object):
                     errors = self.model.load_state_dict(
                         ema_state["params"], strict=False, model_args=self.args
                     )
+                    ema_loaded = True
                 else:
                     errors = self.model.load_state_dict(
                         state["model"], strict=False, model_args=self.args
@@ -383,7 +385,7 @@ class Trainer(object):
             ):
                 logger.info(f"Loading EMA state...")
                 self.ema.load_state_dict(ema_state)
-            elif self.ema is not None:
+            elif self.ema is not None and not ema_loaded:
                 logger.info(
                     f"Cannot find EMA state in checkpoint, load model weight to ema directly"
                 )
@@ -444,6 +446,8 @@ class Trainer(object):
 
         elif had_loaded_model:
             logger.info("Loaded checkpoint {}".format(filename))
+        elif ema_loaded:
+            logger.info("Loaded ema state from checkpoint {}".format(filename))
         else:
             logger.info("No existing checkpoint found {}".format(filename))
 
