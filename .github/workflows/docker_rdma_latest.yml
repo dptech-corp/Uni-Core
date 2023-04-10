@@ -1,9 +1,9 @@
 name: Build and Publish Docker
 
 on:
-  create:
-    tags:
-      - '**'
+  push:
+    branches:
+    - main
 
 jobs:
   docker:
@@ -25,9 +25,9 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       -
-        name: Build and push cu116
+        name: Build and push cu116 with rdma
         uses: docker/build-push-action@v3
         with:
-          context: ./docker/cu116/
+          context: ./docker/rdma/
           push: true
-          tags: dptechnology/unicore:${{ github.ref_name }}-pytorch1.12.1-cuda11.6-flashattn
+          tags: dptechnology/unicore:latest-pytorch1.12.1-cuda11.6-rdma

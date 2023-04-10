@@ -108,7 +108,7 @@ std::vector<at::Tensor> layer_norm(
   CHECK_INPUT(beta);
   int n1,n2;
   check_args(input,normalized_shape,gamma,beta,n1,n2);
-  TORCH_CHECK(n2 == 64 || n2 == 128 || n2 == 256 || n2 == 320 || n2 == 384 || n2 == 512 || n2 == 640 || n2 == 768 || n2 == 1024 || n2 == 1280 ||
+  TORCH_CHECK(n2 == 64 || n2 == 128 || n2 == 192 || n2 == 256 || n2 == 320 || n2 == 384 || n2 == 512 || n2 == 640 || n2 == 768 || n2 == 1024 || n2 == 1280 ||
               n2 == 1536 || n2 == 1792 || n2 == 2048 || n2 == 2560 || n2 == 5120, "dimension is not supported");
   at::Tensor output = at::empty_like(input);
   at::Tensor mean = at::empty({n1}, input.options().dtype((input.scalar_type()==at::ScalarType::Half || input.scalar_type()==at::ScalarType::BFloat16) ? at::ScalarType::Float : input.scalar_type()));
@@ -149,7 +149,7 @@ at::Tensor layer_norm_gradient(
   CHECK_INPUT(beta);
   int n1,n2;
   check_args(input,normalized_shape,gamma,beta,n1,n2);
-  TORCH_CHECK(n2 == 64 || n2 == 128 || n2 == 256 || n2 == 320 || n2 == 384 || n2 == 512 || n2 == 640 || n2 == 768 || n2 == 1024 || n2 == 1280 ||
+  TORCH_CHECK(n2 == 64 || n2 == 128 || n2 == 192 || n2 == 256 || n2 == 320 || n2 == 384 || n2 == 512 || n2 == 640 || n2 == 768 || n2 == 1024 || n2 == 1280 ||
               n2 == 1536 || n2 == 1792 || n2 == 2048 || n2 == 2560 || n2 == 5120, "dimension is not supported");
   at::Tensor grad_input = at::empty_like(input);
   cuda_layer_norm_gradient(&dout,&mean,&invvar,&input,n1,n2,

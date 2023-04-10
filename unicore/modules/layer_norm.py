@@ -45,7 +45,7 @@ class FusedLayerNormFastFunction(torch.autograd.Function):
         weight_, bias_, ctx.eps)
     return grad_input, grad_weight, grad_bias, None, None
 
-FUSED_LAYER_NORM_SUPPORT_DIM = set([64, 128, 256, 320, 384, 512, 640, 768, 1024, 1280, 1536, 1792, 2048, 2560, 5120])
+FUSED_LAYER_NORM_SUPPORT_DIM = set([64, 128, 192, 256, 320, 384, 512, 640, 768, 1024, 1280, 1536, 1792, 2048, 2560, 5120])
 
 class LayerNorm(torch.nn.Module):
     def __init__(self, normalized_shape, eps=1e-5, elementwise_affine=True):

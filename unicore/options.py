@@ -137,7 +137,8 @@ def parse_args_and_arch(
         args.no_seed_provided = True
     else:
         args.no_seed_provided = False
-
+    
+    args.validate_with_ema = getattr(args, "validate_with_ema", False)
     # Apply architecture configuration.
     if hasattr(args, "arch") and args.arch in ARCH_CONFIG_REGISTRY:
         ARCH_CONFIG_REGISTRY[args.arch](args)
@@ -194,6 +195,7 @@ def get_parser(desc, default_task='test'):
                         "main method can return a value (useful for sweeps)")
     parser.add_argument('--profile', action='store_true', help="enable autograd profiler emit_nvtx")
     parser.add_argument('--ema-decay', default=-1.0, type=float, help="enable moving average for model weights")
+    parser.add_argument("--validate-with-ema", action="store_true")
     
 
     from unicore.registry import REGISTRIES
@@ -222,7 +224,7 @@ def add_dataset_args(parser, train=False, gen=False):
                        help='ignore too long or too short lines in valid and test set')
     group.add_argument('--batch-size', '--max-sentences', type=int, metavar='N',
                        help='maximum number of sentences in a batch')
-    group.add_argument('--required-batch-size-multiple', default=8, type=int, metavar='N',
+    group.add_argument('--required-batch-size-multiple', default=1, type=int, metavar='N',
                        help='batch size will be a multiplier of this value')
     group.add_argument('--data-buffer-size', default=10, type=int,
                        help='Number of batches to preload')

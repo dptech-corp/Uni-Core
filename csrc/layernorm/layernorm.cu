@@ -186,6 +186,7 @@ void cuda_layer_norm(
         switch (n2) {
         case 64: LAUNCH_FORWARD_KERNEL(64, 2, 4, nv_bfloat16)
         case 128: LAUNCH_FORWARD_KERNEL(128, 2, 4, nv_bfloat16)
+        case 192: LAUNCH_FORWARD_KERNEL(192, 2, 4, nv_bfloat16)
         case 256: LAUNCH_FORWARD_KERNEL(256, 2, 4, nv_bfloat16)
         case 320: LAUNCH_FORWARD_KERNEL(320, 2, 4, nv_bfloat16)
         case 384: LAUNCH_FORWARD_KERNEL(384, 2, 4, nv_bfloat16)
@@ -204,6 +205,7 @@ void cuda_layer_norm(
         switch (n2) {
         case 64: LAUNCH_FORWARD_KERNEL(64, 2, 4, half)
         case 128: LAUNCH_FORWARD_KERNEL(128, 2, 4, half)
+        case 192: LAUNCH_FORWARD_KERNEL(192, 2, 4, half)
         case 256: LAUNCH_FORWARD_KERNEL(256, 2, 4, half)
         case 320: LAUNCH_FORWARD_KERNEL(320, 2, 4, half)
         case 384: LAUNCH_FORWARD_KERNEL(384, 2, 4, half)
@@ -222,6 +224,7 @@ void cuda_layer_norm(
         switch (n2) {
         case 64: LAUNCH_FORWARD_KERNEL(64, 1, 4, float)
         case 128: LAUNCH_FORWARD_KERNEL(128, 1, 4, float)
+        case 192: LAUNCH_FORWARD_KERNEL(192, 1, 4, float)
         case 256: LAUNCH_FORWARD_KERNEL(256, 1, 4, float)
         case 320: LAUNCH_FORWARD_KERNEL(320, 1, 4, float)
         case 384: LAUNCH_FORWARD_KERNEL(384, 1, 4, float)
@@ -259,6 +262,7 @@ void cuda_layer_norm_gradient(
         switch (n2) {
         case 64: LAUNCH_BACKWARD_KERNEL(64, 2, 4, nv_bfloat16)
         case 128: LAUNCH_BACKWARD_KERNEL(128, 2, 4, nv_bfloat16)
+        case 192: LAUNCH_BACKWARD_KERNEL(192, 2, 4, nv_bfloat16)
         case 256: LAUNCH_BACKWARD_KERNEL(256, 2, 4, nv_bfloat16)
         case 320: LAUNCH_BACKWARD_KERNEL(320, 2, 4, nv_bfloat16)
         case 384: LAUNCH_BACKWARD_KERNEL(384, 2, 4, nv_bfloat16)
@@ -277,6 +281,7 @@ void cuda_layer_norm_gradient(
         switch (n2) {
         case 64: LAUNCH_BACKWARD_KERNEL(64, 2, 4, half)
         case 128: LAUNCH_BACKWARD_KERNEL(128, 2, 4, half)
+        case 192: LAUNCH_BACKWARD_KERNEL(192, 2, 4, half)
         case 256: LAUNCH_BACKWARD_KERNEL(256, 2, 4, half)
         case 320: LAUNCH_BACKWARD_KERNEL(320, 2, 4, half)
         case 384: LAUNCH_BACKWARD_KERNEL(384, 2, 4, half)
@@ -295,6 +300,7 @@ void cuda_layer_norm_gradient(
         switch (n2) {
         case 64: LAUNCH_BACKWARD_KERNEL(64, 1, 4, float)
         case 128: LAUNCH_BACKWARD_KERNEL(128, 1, 4, float)
+        case 192: LAUNCH_BACKWARD_KERNEL(192, 2, 4, float)
         case 256: LAUNCH_BACKWARD_KERNEL(256, 1, 4, float)
         case 320: LAUNCH_BACKWARD_KERNEL(320, 1, 4, float)
         case 384: LAUNCH_BACKWARD_KERNEL(384, 1, 4, float)

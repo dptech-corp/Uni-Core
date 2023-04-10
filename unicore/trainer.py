@@ -15,76 +15,16 @@ import sys
 import time
 from itertools import chain
 from typing import Any, Dict, List
-
 import torch
 from unicore import checkpoint_utils, models, optim, utils
 from unicore.distributed import utils as distributed_utils
 from unicore.logging import meters, metrics
 from unicore.nan_detector import NanDetector
 from unicore.optim import lr_scheduler
-from unicore.utils import tensor_tree_map
+from unicore.ema import ExponentialMovingAverageModel
 
 
 logger = logging.getLogger(__name__)
-
-
-class ExponentialMovingAverage:
-    """
-    Maintains moving averages of parameters with exponential decay
-
-    At each step, the stored copy `copy` of each parameter `param` is
-    updated as follows:
-
-        `copy = decay * copy + (1 - decay) * param`
-
-    where `decay` is an attribute of the ExponentialMovingAverage object.
-    """
-
-    def __init__(self, model: torch.nn.Module, decay: float):
-        """
-        Args:
-            model:
-                A torch.nn.Module whose parameters are to be tracked
-            decay:
-                A value (usually close to 1.) by which updates are
-                weighted as part of the above formula
-        """
-        super(ExponentialMovingAverage, self).__init__()
-        with torch.no_grad():
-            clone_param = lambda t: t.clone().detach().float()
-            self.params = tensor_tree_map(clone_param, model.state_dict())
-        self.decay = decay
-
-    def _update_state_dict_(self, update, state_dict):
-        with torch.no_grad():
-            for k, v in update.items():
-                if state_dict[k].device != v.device:
-                    state_dict[k] = state_dict[k].to(v.device)
-                stored = state_dict[k]
-                if not isinstance(v, torch.Tensor):
-                    self._update_state_dict_(v, stored)
-                else:
-                    diff = stored - v.float()
-                    diff *= 1 - self.decay
-                    stored -= diff
-
-    def update(self, model: torch.nn.Module) -> None:
-        """
-        Updates the stored parameters using the state dict of the provided
-        module. The module should have the same structure as that used to
-        initialize the ExponentialMovingAverage object.
-        """
-        self._update_state_dict_(model.state_dict(), self.params)
-
-    def load_state_dict(self, state_dict: dict) -> None:
-        self.params = state_dict["params"]
-        self.decay = state_dict["decay"] if "decay" in state_dict else self.decay
-
-    def state_dict(self) -> dict:
-        return {
-            "params": self.params,
-            "decay": self.decay,
-        }
 
 
 class Trainer(object):
@@ -167,8 +107,21 @@ class Trainer(object):
             self.cuda_env_arr = None
 
         # add ema
-        if args.ema_decay > 0 and self.data_parallel_rank == 0:
-            self.ema = ExponentialMovingAverage(self._model, decay=args.ema_decay)
+        if args.validate_with_ema:
+            assert args.ema_decay > 0, "valid with ema must with ema_decay > 0"
+
+        if args.ema_decay > 0 and (
+            self.data_parallel_rank == 0 or args.validate_with_ema
+        ):
+            assert isinstance(
+                self.optimizer, optim.FP16Optimizer
+            ), "ema must with fp16 optimizer"
+            self.ema = ExponentialMovingAverageModel(
+                model,
+                args.ema_decay,
+                self._optimizer.fp32_params,
+            )
+
         else:
             self.ema = None
         metrics.log_start_time("wall", priority=790, round=2)
@@ -366,6 +319,8 @@ class Trainer(object):
                 dist_device=self.device,
             )
 
+        had_loaded_model = False
+        ema_loaded = False
         if bexists:
             state = None
             if is_master:
@@ -390,12 +345,14 @@ class Trainer(object):
                     errors = self.model.load_state_dict(
                         ema_state["params"], strict=False, model_args=self.args
                     )
+                    ema_loaded = True
                 else:
                     errors = self.model.load_state_dict(
                         state["model"], strict=False, model_args=self.args
                     )
                     # save memory for later steps
                     del state["model"]
+                    had_loaded_model = True
 
                 if errors.missing_keys:
                     logger.warning(
@@ -428,11 +385,13 @@ class Trainer(object):
             ):
                 logger.info(f"Loading EMA state...")
                 self.ema.load_state_dict(ema_state)
-            elif self.ema is not None:
+            elif self.ema is not None and not ema_loaded:
                 logger.info(
                     f"Cannot find EMA state in checkpoint, load model weight to ema directly"
                 )
-                self.ema = ExponentialMovingAverage(self._model, decay=self.ema.decay)
+                self.ema = ExponentialMovingAverageModel(
+                    self._model, decay=self.ema.decay
+                )
 
         if last_optim_state is not None and not reset_optimizer:
             # rebuild optimizer after loading model, since params may have changed
@@ -485,10 +444,12 @@ class Trainer(object):
                 )
             )
 
+        elif had_loaded_model:
+            logger.info("Loaded checkpoint {}".format(filename))
+        elif ema_loaded:
+            logger.info("Loaded ema state from checkpoint {}".format(filename))
         else:
-            logger.info(
-                "Loaded checkpoint {}".format(filename)
-            )
+            logger.info("No existing checkpoint found {}".format(filename))
 
         return extra_state
 
@@ -728,7 +689,7 @@ class Trainer(object):
                     )
             if self.ema is not None:
                 with torch.autograd.profiler.record_function("ema"):
-                    self.ema.update(self.model)
+                    self.ema.update(self.optimizer.fp32_params)
 
         except FloatingPointError:
             # re-run the forward and backward pass with hooks attached to print

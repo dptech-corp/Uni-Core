@@ -302,7 +302,8 @@ def validate_and_save(
     # Validate
     valid_losses = [None]
     if do_validate:
-        valid_losses = validate(args, trainer, task, epoch_itr, valid_subsets)
+        with utils.validate_with_ema(trainer, ema=args.validate_with_ema):
+            valid_losses = validate(args, trainer, task, epoch_itr, valid_subsets)
 
     should_stop |= should_stop_early(args, valid_losses[0])
 

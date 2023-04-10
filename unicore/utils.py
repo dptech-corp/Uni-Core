@@ -296,6 +296,7 @@ def eval_bool(x, default=False):
 def checkpoint_sequential(
     functions,
     input,
+    enabled=True,
 ):
     def wrap_tuple(a):
         return (a,) if type(a) is not tuple else a
@@ -313,7 +314,7 @@ def checkpoint_sequential(
 
     is_grad_enabled = torch.is_grad_enabled()
 
-    if is_grad_enabled:
+    if enabled and is_grad_enabled:
         for func in functions:
             input = torch.utils.checkpoint.checkpoint(get_wrap_exec(func), *input)
     else:
@@ -420,3 +421,17 @@ def set_jit_fusion_options():
     torch._C._jit_set_profiling_executor(False)
     torch._C._jit_override_can_fuse_on_cpu(True)
     torch._C._jit_override_can_fuse_on_gpu(True)
+
+
+@contextlib.contextmanager
+def validate_with_ema(trainer, ema=False):
+    if not ema:
+        yield
+        return 
+    _wrapped_model = trainer._wrapped_model
+    trainer._wrapped_model = trainer.ema.model_ema
+    try:
+        yield
+    finally:
+        trainer._wrapped_model = _wrapped_model
+    
