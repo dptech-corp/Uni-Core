@@ -46,7 +46,7 @@ def ckp_copy_fun(src, checkpoints, end_of_epoch, args):
                         os.remove(old_chk)
                         logger.info("removed {}".format(old_chk))
 
-            if args.keep_last_epochs > 0:
+            if args.keep_last_epochs >= 0:
                 # remove old epoch checkpoints; checkpoints are sorted in descending order
                 checkpoints = checkpoint_paths(root_path, pattern=r"checkpoint(\d+)\.pt")
                 for old_chk in checkpoints[args.keep_last_epochs :]:
