@@ -8,10 +8,12 @@
 #include "ATen/TensorUtils.h"
 #include "ATen/AccumulateType.h"
 #include <ATen/cuda/Exceptions.h>
+#include <limits>
+#include <cstdint>
 
 #include "type_shim.h"
 
-template <typename T, typename GRAD_T>
+template <typename T, typename GRAD_T, typename SIZE_T>
 __global__ void adam_cuda_kernel(
     GRAD_T* __restrict__ p,
     T* __restrict__ m,
@@ -22,17 +24,17 @@ __global__ void adam_cuda_kernel(
     const float eps,
     const float grad_scale,
     const float step_size,
-    const size_t tsize,
+    const SIZE_T tsize,
     const float decay_size)
 {
     //Assuming 2D grids and 2D blocks
-    const size_t blockId = static_cast<size_t>(gridDim.x) * blockIdx.y + blockIdx.x;
-    const size_t threadsPerBlock = static_cast<size_t>(blockDim.x) * blockDim.y;
-    const size_t threadIdInBlock = static_cast<size_t>(threadIdx.y) * blockDim.x + threadIdx.x;
-    const size_t i = (blockId * threadsPerBlock + threadIdInBlock);
-    const size_t totThreads = gridDim.x*gridDim.y*threadsPerBlock;
+    const SIZE_T blockId = static_cast<SIZE_T>(gridDim.x) * blockIdx.y + blockIdx.x;
+    const SIZE_T threadsPerBlock = static_cast<SIZE_T>(blockDim.x) * blockDim.y;
+    const SIZE_T threadIdInBlock = static_cast<SIZE_T>(threadIdx.y) * blockDim.x + threadIdx.x;
+    const SIZE_T i = (blockId * threadsPerBlock + threadIdInBlock);
+    const SIZE_T totThreads = gridDim.x*gridDim.y*threadsPerBlock;
 
-    for (size_t j = i; j < tsize; j+=totThreads) {
+    for (SIZE_T j = i; j < tsize; j+=totThreads) {
         // weight decay
         T cur_p = (T)p[j] * decay_size;
         T scaled_grad = static_cast<T>(g[j]) / grad_scale;
@@ -79,37 +81,72 @@ void fused_adam_cuda(
     if (g.scalar_type() == at::ScalarType::Half || g.scalar_type() == at::ScalarType::BFloat16) {
         AT_ASSERTM(p.scalar_type() == g.scalar_type(), "expected parameter to be the same type as grad");
         using namespace at; // prevents "toString is undefined" errors
-        DISPATCH_FLOAT_AND_HALF_AND_BF16(g.scalar_type(), 0, "adam_cuda_kernel",
-            using accscalar_t = at::acc_type<scalar_t_0, true>;
-            adam_cuda_kernel<accscalar_t, scalar_t_0><<<blocks,threadsPerBlock, 0, stream>>>(
-                    p.data_ptr<scalar_t_0>(),
-                    m.data_ptr<accscalar_t>(),
-                    v.data_ptr<accscalar_t>(),
-                    g.data_ptr<scalar_t_0>(),
-                    beta1,
-                    beta2,
-                    eps,
-                    grad_scale,
-                    step_size,
-                    tsize,
-                    decay_size);
-            );
+        if (tsize < std::numeric_limits<int32_t>::max()) {
+            DISPATCH_FLOAT_AND_HALF_AND_BF16(g.scalar_type(), 0, "adam_cuda_kernel",
+                using accscalar_t = at::acc_type<scalar_t_0, true>;
+                adam_cuda_kernel<accscalar_t, scalar_t_0, int32_t><<<blocks,threadsPerBlock, 0, stream>>>(
+                        p.data_ptr<scalar_t_0>(),
+                        m.data_ptr<accscalar_t>(),
+                        v.data_ptr<accscalar_t>(),
+                        g.data_ptr<scalar_t_0>(),
+                        beta1,
+                        beta2,
+                        eps,
+                        grad_scale,
+                        step_size,
+                        static_cast<int32_t>(tsize),
+                        decay_size);
+                );
+        } else {
+            DISPATCH_FLOAT_AND_HALF_AND_BF16(g.scalar_type(), 0, "adam_cuda_kernel",
+                using accscalar_t = at::acc_type<scalar_t_0, true>;
+                adam_cuda_kernel<accscalar_t, scalar_t_0, size_t><<<blocks,threadsPerBlock, 0, stream>>>(
+                        p.data_ptr<scalar_t_0>(),
+                        m.data_ptr<accscalar_t>(),
+                        v.data_ptr<accscalar_t>(),
+                        g.data_ptr<scalar_t_0>(),
+                        beta1,
+                        beta2,
+                        eps,
+                        grad_scale,
+                        step_size,
+                        tsize,
+                        decay_size);
+                );
+        }
     } else {
         using namespace at;
-        DISPATCH_DOUBLE_AND_FLOAT(g.scalar_type(), 0, "adam_cuda_kernel",
-            adam_cuda_kernel<scalar_t_0, scalar_t_0><<<blocks,threadsPerBlock, 0, stream>>>(
-                    p.data_ptr<scalar_t_0>(),
-                    m.data_ptr<scalar_t_0>(),
-                    v.data_ptr<scalar_t_0>(),
-                    g.data_ptr<scalar_t_0>(),
-                    beta1,
-                    beta2,
-                    eps,
-                    grad_scale,
-                    step_size,
-                    tsize,
-                    decay_size);
-        );
+        if (tsize < std::numeric_limits<int32_t>::max()) {
+            DISPATCH_DOUBLE_AND_FLOAT(g.scalar_type(), 0, "adam_cuda_kernel",
+                adam_cuda_kernel<scalar_t_0, scalar_t_0, int32_t><<<blocks,threadsPerBlock, 0, stream>>>(
+                        p.data_ptr<scalar_t_0>(),
+                        m.data_ptr<scalar_t_0>(),
+                        v.data_ptr<scalar_t_0>(),
+                        g.data_ptr<scalar_t_0>(),
+                        beta1,
+                        beta2,
+                        eps,
+                        grad_scale,
+                        step_size,
+                        static_cast<int32_t>(tsize),
+                        decay_size);
+            );
+        } else {
+            DISPATCH_DOUBLE_AND_FLOAT(g.scalar_type(), 0, "adam_cuda_kernel",
+                adam_cuda_kernel<scalar_t_0, scalar_t_0, size_t><<<blocks,threadsPerBlock, 0, stream>>>(
+                        p.data_ptr<scalar_t_0>(),
+                        m.data_ptr<scalar_t_0>(),
+                        v.data_ptr<scalar_t_0>(),
+                        g.data_ptr<scalar_t_0>(),
+                        beta1,
+                        beta2,
+                        eps,
+                        grad_scale,
+                        step_size,
+                        tsize,
+                        decay_size);
+            );
+        }
     }
     AT_CUDA_CHECK(cudaGetLastError());
 }
