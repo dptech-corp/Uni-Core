@@ -70,7 +70,12 @@ def main(args) -> None:
     assert args.loss, "Please specify loss to train a model"
 
     # Build model and loss
-    model = task.build_model(args)
+    if args.ddp_backend == "fully_sharded":
+        from unicore.distributed import fsdp_enable_wrap, fsdp_wrap
+        with fsdp_enable_wrap(args):
+            model = fsdp_wrap(task.build_model(args))
+    else:
+        model = task.build_model(args)
     loss = task.build_loss(args)
 
     # Load valid dataset (we load training data below, based on the latest checkpoint)
@@ -308,6 +313,7 @@ def validate_and_save(
     should_stop |= should_stop_early(args, valid_losses[0])
 
     # Save checkpoint
+    trainer.consolidate_optimizer()
     checkpoint_utils.save_checkpoint(
         args, trainer, epoch_itr, valid_losses[0], ckp_copy_thread, do_save=(do_save or should_stop),
     )

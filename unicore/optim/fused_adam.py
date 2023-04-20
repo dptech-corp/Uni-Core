@@ -107,6 +107,11 @@ class FusedAdam(torch.optim.Optimizer):
                         "please consider SparseAdam instead"
                     )
 
+                if p.device.type == "cpu":
+                    p_data_fp32 = p.data.cuda(non_blocking=True).float()
+                else:
+                    p_data_fp32 = p.data.float()
+
                 state = self.state[p]
 
                 # State initialization
@@ -117,8 +122,9 @@ class FusedAdam(torch.optim.Optimizer):
                     # Exponential moving average of squared gradient values
                     state["exp_avg_sq"] = torch.zeros_like(p.data, dtype=torch.float)
                 else:
-                    state["exp_avg"] = state["exp_avg"].to(dtype=torch.float)
-                    state["exp_avg_sq"] = state["exp_avg_sq"].to(dtype=torch.float)
+                    device = p_data_fp32.device
+                    state["exp_avg"] = state["exp_avg"].to(device, dtype=torch.float)
+                    state["exp_avg_sq"] = state["exp_avg_sq"].to(device, dtype=torch.float)
 
                 exp_avg = state["exp_avg"]
                 exp_avg_sq = state["exp_avg_sq"]
