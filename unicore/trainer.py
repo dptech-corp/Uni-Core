@@ -657,6 +657,11 @@ class Trainer(object):
                     self.data_parallel_world_size > 1
                     and hasattr(self.model, "no_sync")
                     and i < len(samples) - 1
+                    # The no_sync context manager results in increased memory
+                    # usage with FSDP, since full-size gradients will be
+                    # accumulated on each GPU. It's typically a better tradeoff
+                    # to do the extra communication with FSDP.
+                    and not self.is_fsdp
                 ):
                     return self.model.no_sync()
                 else:

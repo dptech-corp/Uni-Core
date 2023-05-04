@@ -101,6 +101,8 @@ class FusedAdam(torch.optim.Optimizer):
                 if p.grad is None:
                     continue
                 grad = p.grad.data
+                if grad.dtype in {torch.float16, torch.bfloat16}:
+                    grad = grad.float()
                 if grad.is_sparse:
                     raise RuntimeError(
                         "FusedAdam does not support sparse gradients, "
@@ -113,7 +115,6 @@ class FusedAdam(torch.optim.Optimizer):
                     p_data_fp32 = p.data.float()
 
                 state = self.state[p]
-
                 # State initialization
                 if len(state) == 0:
                     state["step"] = 0

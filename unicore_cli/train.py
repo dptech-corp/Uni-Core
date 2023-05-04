@@ -213,7 +213,6 @@ def train(
     num_updates = trainer.get_num_updates()
     logger.info("Start iterating over samples")
     max_update = args.max_update or math.inf
-
     for i, samples in enumerate(progress):
         with metrics.aggregate("train_inner"), torch.autograd.profiler.record_function(
             "train_step-%d" % i
@@ -313,7 +312,6 @@ def validate_and_save(
     should_stop |= should_stop_early(args, valid_losses[0])
 
     # Save checkpoint
-    trainer.consolidate_optimizer()
     checkpoint_utils.save_checkpoint(
         args, trainer, epoch_itr, valid_losses[0], ckp_copy_thread, do_save=(do_save or should_stop),
     )
