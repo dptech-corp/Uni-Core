@@ -224,7 +224,7 @@ def add_dataset_args(parser, train=False, gen=False):
                        help='ignore too long or too short lines in valid and test set')
     group.add_argument('--batch-size', '--max-sentences', type=int, metavar='N',
                        help='maximum number of sentences in a batch')
-    group.add_argument('--required-batch-size-multiple', default=8, type=int, metavar='N',
+    group.add_argument('--required-batch-size-multiple', default=1, type=int, metavar='N',
                        help='batch size will be a multiplier of this value')
     group.add_argument('--data-buffer-size', default=10, type=int,
                        help='Number of batches to preload')
