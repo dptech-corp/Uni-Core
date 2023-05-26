@@ -38,27 +38,17 @@ jobs:
       matrix:
           # os: [ubuntu-20.04]
           os: [ubuntu-18.04]
-          python-version: ['3.7', '3.8', '3.9', '3.10']
-          torch-version: [1.12.0, 1.12.1, 1.13.1, 2.0.0]
-          cuda-version: ['113', '116', '117', '118']
+          python-version: ['3.9']
+          torch-version: [1.13.1, 2.0.1]
+          cuda-version: ['116', '117', '118']
+          include:
+            - os: macos-13
+              torch-version: 2.0.1
+              cuda-version: 'cpu'
           exclude:
-            - torch-version: 1.12.0
-              cuda-version: '117'
-            - torch-version: 1.12.0
-              cuda-version: '118'
-            - torch-version: 1.12.1
-              cuda-version: '117'
-            - torch-version: 1.12.1
-              cuda-version: '118'
-            - torch-version: 1.13.1
-              cuda-version: '113'
             - torch-version: 1.13.1
               cuda-version: '118'
-            - torch-version: 2.0.0
-              python-version: '3.7'
-            - torch-version: 2.0.0
-              cuda-version: '113'
-            - torch-version: 2.0.0
+            - torch-version: 2.0.1
               cuda-version: '116'
 
     steps:
@@ -96,6 +86,7 @@ jobs:
           bash
 
       - name: Install PyTorch ${{ matrix.torch-version }}+cu${{ matrix.cuda-version }}
+        if: ${{ matrix.cuda-version != 'cpu' }}
         run: |
           pip install numpy pyyaml scipy ipython mkl mkl-include ninja cython typing pandas typing-extensions dataclasses && conda clean -ya
           pip install --no-index --no-cache-dir torch==${{ matrix.torch-version }} -f https://download.pytorch.org/whl/cu${{ matrix.cuda-version }}/torch_stable.html
@@ -103,6 +94,16 @@ jobs:
           python -c "import torch; print('PyTorch:', torch.__version__)"
           python -c "import torch; print('CUDA:', torch.version.cuda)"
           python -c "from torch.utils import cpp_extension; print (cpp_extension.CUDA_HOME)"
+        shell:
+          bash
+
+      - name: Install PyTorch ${{ matrix.torch-version }}+${{ matrix.cuda-version }}
+        if: ${{ matrix.cuda-version == 'cpu' }}
+        run: |
+          pip install numpy pyyaml scipy ipython mkl mkl-include ninja cython typing pandas typing-extensions dataclasses && conda clean -ya
+          pip install --no-index --no-cache-dir torch==${{ matrix.torch-version }} -f https://download.pytorch.org/whl/cpu/torch_stable.html
+          python --version
+          python -c "import torch; print('PyTorch:', torch.__version__)"
         shell:
           bash
       
@@ -118,7 +119,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build wheel
+      - name: Build CUDA wheel
+        if: ${{ matrix.cuda-version != 'cpu' }}
         run: |
           export FORCE_CUDA="1"
           export PATH=/usr/local/nvidia/bin:/usr/local/nvidia/lib64:$PATH
@@ -130,6 +132,16 @@ jobs:
           wheel_name=$(ls dist/*whl | xargs -n 1 basename | sed "s/-/+$tmpname-/2")
           ls dist/*whl |xargs -I {} mv {} ${wheel_name}
           echo "wheel_name=${wheel_name}" >> $GITHUB_ENV
+
+      - name: Build CPU wheel
+        if: ${{ matrix.cuda-version == 'cpu' }}
+        run: |
+          pip install wheel
+          python setup.py bdist_wheel --dist-dir=dist
+          tmpname=cpu+torch${{ matrix.torch-version }}
+          wheel_name=$(ls dist/*whl | xargs -n 1 basename | sed "s/-/+$tmpname-/2")
+          ls dist/*whl |xargs -I {} mv {} ${wheel_name}
+          echo "wheel_name=${wheel_name}" >> $GITHUB_ENV        
       
       - name: Upload Release Asset
         id: upload_release_asset 
