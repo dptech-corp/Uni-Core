@@ -19,14 +19,16 @@ try:
     import unicore_fused_multi_tensor
     HAS_MULTI_TENSOR = True
 except:
-    print("fused_multi_tensor is not installed corrected")
+    if torch.cuda.is_available():
+        print("fused_multi_tensor is not installed corrected")
     HAS_MULTI_TENSOR = False
 
 try:
     import unicore_fused_rounding
     HAS_FUSED_ROUNDING = True
 except:
-    print("fused_rounding is not installed corrected")
+    if torch.cuda.is_available():
+        print("fused_rounding is not installed corrected")
     HAS_FUSED_ROUNDING = False
 
 if not torch.cuda.is_available() or torch.cuda.get_device_capability()[0] < 7:

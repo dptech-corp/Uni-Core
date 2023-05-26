@@ -13,7 +13,8 @@ try:
     import unicore_fused_layernorm_backward_gamma_beta
     HAS_LAYER_NORM = True
 except:
-    print("fused_layer_norm is not installed corrected")
+    if torch.cuda.is_available():
+        print("fused_layer_norm is not installed corrected")
     HAS_LAYER_NORM = False
 
 if not torch.cuda.is_available() or torch.cuda.get_device_capability()[0] < 7:

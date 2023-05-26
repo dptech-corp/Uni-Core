@@ -9,7 +9,8 @@ try:
     import unicore_fused_softmax_dropout
     HAS_SOFTMAX = True
 except:
-    print("fused_softmax is not installed corrected")
+    if torch.cuda.is_available():
+        print("fused_softmax is not installed corrected")
     HAS_SOFTMAX = False
 
 if not torch.cuda.is_available() or torch.cuda.get_device_capability()[0] < 7:
