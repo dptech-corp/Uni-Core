@@ -358,7 +358,6 @@ class TensorboardProgressBarWrapper(BaseProgressBar):
         for key in stats.keys() - {"num_updates"}:
             if isinstance(stats[key], AverageMeter):
                 val = stats[key].val
-                writer.add_scalar(key, stats[key].val, step)
             elif isinstance(stats[key], Number):
                 val = stats[key]
             elif torch.is_tensor(stats[key]) and stats[key].numel() == 1:
