@@ -1,46 +1,23 @@
-# This workflow will upload a Python Package to Release asset
-# For more information see: https://help.github.com/en/actions/language-and-framework-guides/using-python-with-github-actions#publishing-to-package-registries
-
-
 name: Python Package
+run-name: Run ${{ github.run_id }}
 
 on:
-  create:
-    tags:
-      - '**'
+ release:
+   types:
+     - published
 
 jobs:
-  release:
-    name: Create Release
-    runs-on: ubuntu-latest
-    steps:
-      - name: Get the tag version
-        id: extract_branch
-        run: echo ::set-output name=branch::${GITHUB_REF#refs/tags/}
-        shell: bash
-
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.extract_branch.outputs.branch }}
-          release_name: ${{ steps.extract_branch.outputs.branch }}
-      
   wheel:
     name: Build Wheel
     runs-on: ${{ matrix.os }}
-    needs: release
     
     strategy:
       fail-fast: false
       matrix:
-          # os: [ubuntu-20.04]
-          os: [ubuntu-18.04]
+          os: [ubuntu-22.04]
           python-version: ['3.9']
           torch-version: [1.13.1, 2.0.1]
-          cuda-version: ['116', '117', '118']
+          cuda-version: ['117', '118']
           include:
             - os: macos-13
               torch-version: 2.0.1
@@ -48,8 +25,6 @@ jobs:
           exclude:
             - torch-version: 1.13.1
               cuda-version: '118'
-            - torch-version: 2.0.1
-              cuda-version: '116'
 
     steps:
       - name: Checkout
@@ -59,14 +34,13 @@ jobs:
         uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
+          architecture: 'x64'
 
       - name: Set up Linux Env
         if: ${{ runner.os == 'Linux' }}
         run: |
           sudo rm -rf /usr/share/dotnet
           bash .github/workflows/env.sh
-          echo ${{ needs.create_release.outputs.upload_url }} 
-          echo ${{ needs.steps.extract_branch.outputs.upload_url }} 
         shell:
           bash
 
@@ -88,8 +62,9 @@ jobs:
       - name: Install PyTorch ${{ matrix.torch-version }}+cu${{ matrix.cuda-version }}
         if: ${{ matrix.cuda-version != 'cpu' }}
         run: |
-          pip install numpy pyyaml scipy ipython mkl mkl-include ninja cython typing pandas typing-extensions dataclasses && conda clean -ya
-          pip install --no-index --no-cache-dir torch==${{ matrix.torch-version }} -f https://download.pytorch.org/whl/cu${{ matrix.cuda-version }}/torch_stable.html
+          pip install numpy pyyaml scipy ipython mkl mkl-include ninja cython typing pandas typing-extensions dataclasses
+          pip install sympy networkx jinja2 cmake lit
+          pip install torch==${{ matrix.torch-version }} --index-url https://download.pytorch.org/whl/cu${{ matrix.cuda-version }}
           python --version
           python -c "import torch; print('PyTorch:', torch.__version__)"
           python -c "import torch; print('CUDA:', torch.version.cuda)"
@@ -100,32 +75,16 @@ jobs:
       - name: Install PyTorch ${{ matrix.torch-version }}+${{ matrix.cuda-version }}
         if: ${{ matrix.cuda-version == 'cpu' }}
         run: |
-          pip install numpy pyyaml scipy ipython mkl mkl-include ninja cython typing pandas typing-extensions dataclasses && conda clean -ya
-          pip install --no-index --no-cache-dir torch==${{ matrix.torch-version }} -f https://download.pytorch.org/whl/cpu/torch_stable.html
+          pip install numpy pyyaml scipy ipython mkl mkl-include ninja cython typing pandas typing-extensions dataclasses
+          pip install --no-cache-dir torch==${{ matrix.torch-version }}
           python --version
           python -c "import torch; print('PyTorch:', torch.__version__)"
         shell:
           bash
-      
-      - name: Get the tag version
-        id: extract_branch
-        run: echo ::set-output name=branch::${GITHUB_REF#refs/tags/}
 
-      - name: Get Release with tag
-        id: get_current_release
-        uses: joutvhu/get-release@v1
-        with:
-          tag_name: ${{ steps.extract_branch.outputs.branch }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build CUDA wheel
+      - name: Build CUDA Wheel
         if: ${{ matrix.cuda-version != 'cpu' }}
         run: |
-          export FORCE_CUDA="1"
-          export PATH=/usr/local/nvidia/bin:/usr/local/nvidia/lib64:$PATH
-          export LD_LIBRARY_PATH=/usr/local/nvidia/lib64:/usr/local/cuda/lib64:$LD_LIBRARY_PATH
-          export CUDA_INSTALL_DIR=/usr/local/cuda-11.3$CUDA_INSTALL_DIR
           pip install wheel
           python setup.py bdist_wheel --dist-dir=dist
           tmpname=cu${{ matrix.cuda-version }}torch${{ matrix.torch-version }}
@@ -133,25 +92,29 @@ jobs:
           ls dist/*whl |xargs -I {} mv {} ${wheel_name}
           echo "wheel_name=${wheel_name}" >> $GITHUB_ENV
 
-      - name: Build CPU wheel
+      - name: Build CPU Wheel
         if: ${{ matrix.cuda-version == 'cpu' }}
         run: |
           pip install wheel
-          python setup.py bdist_wheel --dist-dir=dist
+          python setup.py bdist_wheel --dist-dir=dist --disable-cuda-ext
           tmpname=cpu+torch${{ matrix.torch-version }}
           wheel_name=$(ls dist/*whl | xargs -n 1 basename | sed "s/-/+$tmpname-/2")
           ls dist/*whl |xargs -I {} mv {} ${wheel_name}
           echo "wheel_name=${wheel_name}" >> $GITHUB_ENV        
-      
+
+      - name: Get Release
+        id: get_release
+        uses: bruceadams/get-release@v1.3.2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
       - name: Upload Release Asset
         id: upload_release_asset 
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # upload_url: ${{ needs.create_release.outputs.upload_url }}
-          # why didn't works
-          upload_url: ${{ steps.get_current_release.outputs.upload_url }}
-          asset_path: ./${{env.wheel_name}}
-          asset_name: ${{env.wheel_name}}
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_path: ./${{ env.wheel_name }}
+          asset_name: ${{ env.wheel_name }}
           asset_content_type: application/*
