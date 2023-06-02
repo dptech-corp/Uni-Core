@@ -40,7 +40,6 @@ logger = logging.getLogger("unicore_cli.train")
 
 
 def main(args) -> None:
-
     utils.import_user_module(args)
     utils.set_jit_fusion_options()
 
@@ -84,17 +83,17 @@ def main(args) -> None:
     logger.info(
         "num. model params: {:,} (num. trained: {:,})".format(
             sum(getattr(p, "_orig_size", p).numel() for p in model.parameters()),
-            sum(getattr(p, "_orig_size", p).numel() for p in model.parameters() if p.requires_grad),
+            sum(
+                getattr(p, "_orig_size", p).numel()
+                for p in model.parameters()
+                if p.requires_grad
+            ),
         )
     )
 
     # Build trainer
     trainer = Trainer(args, task, model, loss)
-    logger.info(
-        "training on {} devices (GPUs)".format(
-            args.distributed_world_size
-        )
-    )
+    logger.info("training on {} devices (GPUs)".format(args.distributed_world_size))
     logger.info(
         "batch size per device = {}".format(
             args.batch_size,
@@ -123,7 +122,9 @@ def main(args) -> None:
             break
 
         # train for one epoch
-        valid_losses, should_stop = train(args, trainer, task, epoch_itr, ckp_copy_thread)
+        valid_losses, should_stop = train(
+            args, trainer, task, epoch_itr, ckp_copy_thread
+        )
         if should_stop:
             break
 
@@ -194,11 +195,13 @@ def train(
         log_interval=args.log_interval,
         epoch=epoch_itr.epoch,
         tensorboard_logdir=(
-            args.tensorboard_logdir
-            if distributed_utils.is_master(args)
-            else None
+            args.tensorboard_logdir if distributed_utils.is_master(args) else None
+        ),
+        wandb_project=(
+            args.wandb_project if distributed_utils.is_master(args) else None
         ),
         default_log_format=("tqdm" if not args.no_progress_bar else "simple"),
+        args=args,
     )
 
     trainer.begin_epoch(epoch_itr.epoch)
@@ -267,10 +270,7 @@ def validate_and_save(
         )
 
     training_time_hours = trainer.cumulative_training_time() / (60 * 60)
-    if (
-        args.stop_time_hours > 0
-        and training_time_hours > args.stop_time_hours
-    ):
+    if args.stop_time_hours > 0 and training_time_hours > args.stop_time_hours:
         should_stop = True
         logger.info(
             f"Stopping training due to "
@@ -279,7 +279,11 @@ def validate_and_save(
         )
 
     do_save = (
-        (end_of_epoch and epoch_itr.epoch % args.save_interval == 0 and not args.no_epoch_checkpoints)
+        (
+            end_of_epoch
+            and epoch_itr.epoch % args.save_interval == 0
+            and not args.no_epoch_checkpoints
+        )
         or should_stop
         or (
             args.save_interval_updates > 0
@@ -290,7 +294,11 @@ def validate_and_save(
     )
     do_validate = (
         (not end_of_epoch and do_save)  # validate during mid-epoch saves
-        or (end_of_epoch and epoch_itr.epoch % args.validate_interval == 0 and not args.no_epoch_checkpoints)
+        or (
+            end_of_epoch
+            and epoch_itr.epoch % args.validate_interval == 0
+            and not args.no_epoch_checkpoints
+        )
         or should_stop
         or (
             args.validate_interval_updates > 0
@@ -309,7 +317,12 @@ def validate_and_save(
 
     # Save checkpoint
     checkpoint_utils.save_checkpoint(
-        args, trainer, epoch_itr, valid_losses[0], ckp_copy_thread, do_save=(do_save or should_stop),
+        args,
+        trainer,
+        epoch_itr,
+        valid_losses[0],
+        ckp_copy_thread,
+        do_save=(do_save or should_stop),
     )
 
     return valid_losses, should_stop
@@ -377,11 +390,12 @@ def validate(
         return valid_losses
 
 
-def get_valid_stats(
-    args, trainer: Trainer, stats: Dict[str, Any]
-) -> Dict[str, Any]:
+def get_valid_stats(args, trainer: Trainer, stats: Dict[str, Any]) -> Dict[str, Any]:
     stats["num_updates"] = trainer.get_num_updates()
-    if hasattr(checkpoint_utils.save_checkpoint, "best") and args.best_checkpoint_metric in stats:
+    if (
+        hasattr(checkpoint_utils.save_checkpoint, "best")
+        and args.best_checkpoint_metric in stats
+    ):
         key = "best_{0}".format(args.best_checkpoint_metric)
         best_function = max if args.maximize_best_checkpoint_metric else min
         stats[key] = best_function(
