@@ -240,6 +240,7 @@ setup(
         "scipy",
         "tensorboardX",
         "tokenizers",
+        "wandb",
     ],
     packages=find_packages(
         exclude=[
