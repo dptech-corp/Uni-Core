@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/pytorch:22.05-py3
+FROM nvcr.io/nvidia/pytorch:22.10-py3
 
 RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
     rm -rf /var/lib/apt/lists/* \
@@ -70,7 +70,7 @@ RUN conda install -y ninja typing && \
 
 RUN pip3 install --upgrade sentry-sdk requests
 
-RUN pip3 install --no-cache-dir torch==1.12.1 --extra-index-url https://download.pytorch.org/whl/cu116 && rm -rf ~/.cache/pip 
+RUN pip3 install torch==2.0.0+cu118  --index-url https://download.pytorch.org/whl/cu118 && rm -rf ~/.cache/pip 
 
 RUN cd /tmp && \
     git clone https://github.com/dptech-corp/Uni-Core && \
