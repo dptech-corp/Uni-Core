@@ -68,6 +68,8 @@ ENV TORCH_CUDA_ARCH_LIST "7.0;7.5;8.0"
 RUN conda install -y ninja typing && \
     conda clean -ya
 
+RUN pip3 install --upgrade sentry-sdk 
+
 RUN pip3 install --no-cache-dir torch==1.12.1 --extra-index-url https://download.pytorch.org/whl/cu116 && rm -rf ~/.cache/pip 
 
 RUN cd /tmp && \
