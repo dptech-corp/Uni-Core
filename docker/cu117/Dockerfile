@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu20.04
+FROM nvidia/cuda:11.7.0-cudnn8-devel-ubuntu20.04
 
 ENV LANG C.UTF-8
 ENV OFED_VERSION=5.3-1.0.0.1
@@ -107,7 +107,7 @@ RUN conda install -y numpy pyyaml scipy ipython mkl mkl-include ninja cython typ
 
 RUN pip3 install --upgrade sentry-sdk
 
-RUN conda install pytorch==2.0.0 pytorch-cuda=11.8 -c pytorch -c nvidia && \
+RUN conda install pytorch==2.0.0 pytorch-cuda=11.7 -c pytorch -c nvidia && \
     conda clean -ya
 
 RUN cd /tmp && \

@@ -25,9 +25,9 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       -
-        name: Build and push cu118
+        name: Build and push cu117
         uses: docker/build-push-action@v3
         with:
-          context: ./docker/cu118/
+          context: ./docker/cu117/
           push: true
-          tags: robotcator/unicore:${{ github.ref_name }}-pytorch2.0.0-cuda11.8
+          tags: dptechnology/unicore:${{ github.ref_name }}-pytorch2.0.0-cuda11.7
