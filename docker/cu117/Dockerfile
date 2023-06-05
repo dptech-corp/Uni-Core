@@ -13,7 +13,6 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
         && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive $APT_INSTALL \
-    apt-get install \
         build-essential \
         apt-utils \
         ca-certificates \
