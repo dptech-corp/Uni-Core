@@ -104,7 +104,7 @@ ENV TORCH_CUDA_ARCH_LIST "7.0;7.5;8.0"
 RUN conda install -y numpy pyyaml scipy ipython mkl mkl-include ninja cython typing pandas && \
     conda clean -ya
 
-RUN pip3 install --upgrade sentry-sdk
+RUN pip3 install --upgrade sentry-sdk requests
 
 RUN conda install pytorch==2.0.0 pytorch-cuda=11.7 -c pytorch -c nvidia && \
     conda clean -ya
