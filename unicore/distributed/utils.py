@@ -187,7 +187,7 @@ def call_main(args, main, **kwargs):
                 join=True,
             )
         else:
-            distributed_main(args.device_id, main, args, kwargs)
+            distributed_main(int(os.environ['LOCAL_RANK']), main, args, kwargs)
     else:
         # single GPU main
         main(args, **kwargs)
