@@ -70,7 +70,7 @@ RUN conda install -y ninja typing && \
 
 RUN pip3 install --upgrade sentry-sdk requests
 
-RUN pip3 install torch==2.0.0+cu117  --index-url https://download.pytorch.org/whl/cu117 && rm -rf ~/.cache/pip
+RUN pip3 install torch==2.0.1+cu117  --index-url https://download.pytorch.org/whl/cu117 && rm -rf ~/.cache/pip
 
 RUN cd /tmp && \
     git clone https://github.com/dptech-corp/Uni-Core && \

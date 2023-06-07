@@ -30,4 +30,4 @@ jobs:
         with:
           context: ./docker/rdma/
           push: true
-          tags: dptechnology/unicore:latest-pytorch2.0.0-cuda11.7-rdma
+          tags: dptechnology/unicore:latest-pytorch2.0.1-cuda11.7-rdma
