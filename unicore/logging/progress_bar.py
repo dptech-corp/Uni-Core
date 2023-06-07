@@ -313,8 +313,13 @@ class TensorboardProgressBarWrapper(BaseProgressBar):
         global _wandb_inited
         if not _wandb_inited and wandb_project and wandb_available:
             wandb_name = args.wandb_name or wandb.util.generate_id()
+            if "/" in wandb_project:
+                entity, project = wandb_project.split("/")
+            else:
+                entity, project = None, wandb_project
             wandb.init(
-                project=wandb_project,
+                project=project,
+                entity=entity,
                 name=wandb_name,
                 config=vars(args),
                 id=wandb_name,
