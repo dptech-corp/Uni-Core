@@ -25,9 +25,9 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       -
-        name: Build and push cu116 with rdma
+        name: Build and push cu117 with rdma
         uses: docker/build-push-action@v3
         with:
           context: ./docker/rdma/
           push: true
-          tags: dptechnology/unicore:latest-pytorch1.12.1-cuda11.6-rdma
+          tags: dptechnology/unicore:latest-pytorch2.0.0-cuda11.7-rdma
