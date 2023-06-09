@@ -13,6 +13,7 @@ import warnings
 from functools import partial
 from typing import List, Callable, Any, Dict
 import torch
+import torch.utils.checkpoint
 import torch.nn.functional as F
 
 try:
