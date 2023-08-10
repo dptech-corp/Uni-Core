@@ -113,13 +113,9 @@ class Trainer(object):
         if args.ema_decay > 0 and (
             self.data_parallel_rank == 0 or args.validate_with_ema
         ):
-            assert isinstance(
-                self.optimizer, optim.FP16Optimizer
-            ), "ema must with fp16 optimizer"
             self.ema = ExponentialMovingAverageModel(
                 model,
                 args.ema_decay,
-                self._optimizer.fp32_params,
             )
 
         else:
