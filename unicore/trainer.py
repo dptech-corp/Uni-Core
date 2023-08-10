@@ -113,6 +113,8 @@ class Trainer(object):
         if args.ema_decay > 0 and (
             self.data_parallel_rank == 0 or args.validate_with_ema
         ):
+
+            assert (self.args.fp16 or self.args.bf16), "ema must with fp16 or bf16"
             self.ema = ExponentialMovingAverageModel(
                 model,
                 args.ema_decay,
