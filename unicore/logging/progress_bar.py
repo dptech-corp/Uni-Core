@@ -33,7 +33,9 @@ def progress_bar(
     epoch: Optional[int] = None,
     prefix: Optional[str] = None,
     tensorboard_logdir: Optional[str] = None,
+    wandb_project: Optional[str] = None,
     default_log_format: str = "tqdm",
+    args=None,
 ):
     if log_format is None:
         log_format = default_log_format
@@ -52,42 +54,11 @@ def progress_bar(
         raise ValueError("Unknown log format: {}".format(log_format))
 
     if tensorboard_logdir:
-        try:
-            # [FB only] custom wrapper for TensorBoard
-            import palaas  # noqa
-            from .fb_tbmf_wrapper import FbTbmfWrapper
-
-            bar = FbTbmfWrapper(bar, log_interval)
-        except ImportError:
-            bar = TensorboardProgressBarWrapper(bar, tensorboard_logdir)
+        bar = TensorboardProgressBarWrapper(
+            bar, tensorboard_logdir, wandb_project, args
+        )
 
     return bar
-
-
-def build_progress_bar(
-    args,
-    iterator,
-    epoch: Optional[int] = None,
-    prefix: Optional[str] = None,
-    default: str = "tqdm",
-    no_progress_bar: str = "none",
-):
-    """Legacy wrapper that takes an argparse.Namespace."""
-    if getattr(args, "no_progress_bar", False):
-        default = no_progress_bar
-    if getattr(args, "distributed_rank", 0) == 0:
-        tensorboard_logdir = getattr(args, "tensorboard_logdir", None)
-    else:
-        tensorboard_logdir = None
-    return progress_bar(
-        iterator,
-        log_format=args.log_format,
-        log_interval=args.log_interval,
-        epoch=epoch,
-        prefix=prefix,
-        tensorboard_logdir=tensorboard_logdir,
-        default_log_format=default,
-    )
 
 
 def format_stat(stat):
@@ -306,10 +277,23 @@ except ImportError:
     except ImportError:
         SummaryWriter = None
 
+try:
+    _wandb_inited = False
+    import wandb
+
+    wandb_available = True
+except ImportError:
+    wandb_available = False
+
 
 def _close_writers():
     for w in _tensorboard_writers.values():
         w.close()
+    if _wandb_inited:
+        try:
+            wandb.finish()
+        except:
+            pass
 
 
 atexit.register(_close_writers)
@@ -318,7 +302,7 @@ atexit.register(_close_writers)
 class TensorboardProgressBarWrapper(BaseProgressBar):
     """Log to tensorboard."""
 
-    def __init__(self, wrapped_bar, tensorboard_logdir):
+    def __init__(self, wrapped_bar, tensorboard_logdir, wandb_project, args):
         self.wrapped_bar = wrapped_bar
         self.tensorboard_logdir = tensorboard_logdir
 
@@ -326,6 +310,22 @@ class TensorboardProgressBarWrapper(BaseProgressBar):
             logger.warning(
                 "tensorboard not found, please install with: pip install tensorboard"
             )
+        global _wandb_inited
+        if not _wandb_inited and wandb_project and wandb_available:
+            wandb_name = args.wandb_name or wandb.util.generate_id()
+            if "/" in wandb_project:
+                entity, project = wandb_project.split("/")
+            else:
+                entity, project = None, wandb_project
+            wandb.init(
+                project=project,
+                entity=entity,
+                name=wandb_name,
+                config=vars(args),
+                id=wandb_name,
+                resume="allow",
+            )
+            _wandb_inited = True
 
     def _writer(self, key):
         if SummaryWriter is None:
@@ -362,9 +362,15 @@ class TensorboardProgressBarWrapper(BaseProgressBar):
             step = stats["num_updates"]
         for key in stats.keys() - {"num_updates"}:
             if isinstance(stats[key], AverageMeter):
-                writer.add_scalar(key, stats[key].val, step)
+                val = stats[key].val
             elif isinstance(stats[key], Number):
-                writer.add_scalar(key, stats[key], step)
+                val = stats[key]
             elif torch.is_tensor(stats[key]) and stats[key].numel() == 1:
-                writer.add_scalar(key, stats[key].item(), step)
+                val = stats[key].item()
+            else:
+                val = None
+            if val:
+                writer.add_scalar(key, val, step)
+                if _wandb_inited:
+                    wandb.log({"{}_{}".format(tag, key): val}, step=step)
         writer.flush()

@@ -10,8 +10,15 @@ import torch
 
 
 from typing import Callable, List, Optional
+
 # this import is for backward compatibility
-from unicore.utils import csv_str_list, eval_bool, eval_str_dict, eval_str_list, import_user_module  # noqa
+from unicore.utils import (
+    csv_str_list,
+    eval_bool,
+    eval_str_dict,
+    eval_str_list,
+    import_user_module,
+)  # noqa
 
 
 def get_training_parser(default_task="translation"):
@@ -137,7 +144,7 @@ def parse_args_and_arch(
         args.no_seed_provided = True
     else:
         args.no_seed_provided = False
-    
+
     args.validate_with_ema = getattr(args, "validate_with_ema", False)
     # Apply architecture configuration.
     if hasattr(args, "arch") and args.arch in ARCH_CONFIG_REGISTRY:
@@ -149,11 +156,11 @@ def parse_args_and_arch(
         return args
 
 
-def get_parser(desc, default_task='test'):
+def get_parser(desc, default_task="test"):
     # Before creating the true parser, we need to import optional user module
     # in order to eagerly import custom tasks, optimizers, architectures, etc.
     usr_parser = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
-    usr_parser.add_argument('--user-dir', default=None)
+    usr_parser.add_argument("--user-dir", default=None)
     usr_args, _ = usr_parser.parse_known_args()
     import_user_module(usr_args)
 
@@ -167,6 +174,10 @@ def get_parser(desc, default_task='test'):
     parser.add_argument('--tensorboard-logdir', metavar='DIR', default='',
                         help='path to save logs for tensorboard, should match --logdir '
                              'of running tensorboard (default: no tensorboard logging)')
+    parser.add_argument('--wandb-project', metavar='DIR', default='',
+                        help='name of wandb project, empty for no wandb logging, for wandb login, use env WANDB_API_KEY. You can also use team_name/project_name for project name.')
+    parser.add_argument('--wandb-name', metavar='DIR', default='',
+                        help='wandb run/id name, empty for no wandb logging, for wandb login, use env WANDB_API_KEY')
     parser.add_argument('--seed', default=1, type=int, metavar='N',
                         help='pseudo random number generator seed')
     parser.add_argument('--cpu', action='store_true', help='use CPU instead of CUDA')
@@ -216,7 +227,7 @@ def get_parser(desc, default_task='test'):
 
 
 def add_dataset_args(parser, train=False, gen=False):
-    group = parser.add_argument_group('Dataset and data loading')
+    group = parser.add_argument_group("Dataset and data loading")
     # fmt: off
     group.add_argument('--num-workers', default=1, type=int, metavar='N',
                        help='how many subprocesses to use for data loading')
@@ -256,7 +267,7 @@ def add_dataset_args(parser, train=False, gen=False):
 
 
 def add_distributed_training_args(parser):
-    group = parser.add_argument_group('Distributed training')
+    group = parser.add_argument_group("Distributed training")
     # fmt: off
     group.add_argument('--distributed-world-size', type=int, metavar='N',
                        default=max(1, torch.cuda.device_count()),
@@ -301,7 +312,7 @@ def add_distributed_training_args(parser):
 
 
 def add_optimization_args(parser):
-    group = parser.add_argument_group('Optimization')
+    group = parser.add_argument_group("Optimization")
     # fmt: off
     group.add_argument('--max-epoch', '--me', default=0, type=int, metavar='N',
                        help='force stop training at specified epoch')
@@ -327,7 +338,7 @@ def add_optimization_args(parser):
 
 
 def add_checkpoint_args(parser):
-    group = parser.add_argument_group('Checkpointing')
+    group = parser.add_argument_group("Checkpointing")
     # fmt: off
     group.add_argument('--save-dir', metavar='DIR', default='checkpoints',
                        help='path to save checkpoints')
@@ -397,7 +408,7 @@ def add_common_eval_args(group):
 
 
 def add_model_args(parser):
-    group = parser.add_argument_group('Model configuration')
+    group = parser.add_argument_group("Model configuration")
     # fmt: off
 
     # Model definitions can be found under unicore/models/

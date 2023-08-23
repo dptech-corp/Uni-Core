@@ -234,12 +234,13 @@ setup(
     install_requires=[
         'numpy; python_version>="3.7"',
         "lmdb",
-        "torch>=1.11.0",
+        "torch>=2.0.0",
         "tqdm",
         "ml_collections",
         "scipy",
         "tensorboardX",
         "tokenizers",
+        "wandb",
     ],
     packages=find_packages(
         exclude=[
