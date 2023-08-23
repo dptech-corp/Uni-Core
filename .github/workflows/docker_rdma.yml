@@ -1,9 +1,9 @@
 name: Build and Publish Docker
 
-on:
-  create:
-    tags:
-      - '**'
+#on:
+#  create:
+#    tags:
+#      - '**'
 
 jobs:
   docker:
