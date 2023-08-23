@@ -1,9 +1,7 @@
 name: Build and Publish Docker
 
-#on:
-#  push:
-#    branches:
-#    - main
+on:
+  workflow_dispatch:
 
 jobs:
   docker:
