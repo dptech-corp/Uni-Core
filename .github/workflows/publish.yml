@@ -106,7 +106,9 @@ jobs:
 
       - name: Get Release
         id: get_release
-        uses: bruceadams/get-release@v1.3.2
+        uses: joutvhu/get-release@v1
+        with:
+          latest: true
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
