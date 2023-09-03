@@ -21,6 +21,8 @@ from dataclasses import dataclass
 import torch
 import torch.distributed as dist
 
+from .comm_group import scg
+
 
 logger = logging.getLogger(__name__)
 
@@ -137,6 +139,9 @@ def distributed_init(args):
         if torch.cuda.is_available():
             dist.all_reduce(torch.zeros(1).cuda())
 
+        scg.init_group(bp_degree=args.bp_degree, dap_degree=1)
+
+    args.dp_rank = scg.get_dp_rank_in_group() if torch.distributed.get_world_size() > 1 else 0
     args.distributed_rank = torch.distributed.get_rank()
 
     if is_master(args):
