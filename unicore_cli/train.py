@@ -237,6 +237,9 @@ def train(
         if should_stop:
             break
 
+    # end-of-epoch hook
+    trainer.end_epoch(epoch_itr.epoch)
+
     # log end-of-epoch stats
     logger.info("end of epoch {} (average epoch stats below)".format(epoch_itr.epoch))
     stats = get_training_stats(metrics.get_smoothed_values("train"))

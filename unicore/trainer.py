@@ -526,6 +526,13 @@ class Trainer(object):
         # task specific setup per epoch
         self.task.begin_epoch(epoch, self.get_model())
 
+    def end_epoch(self, epoch):
+        """Called at the end of each epoch."""
+        logger.info("end training epoch {}".format(epoch))
+
+        # task specific setup per epoch
+        self.task.end_epoch(epoch, self.get_model())
+
     def begin_valid_epoch(self, epoch):
         """Called at the beginning of each validation epoch."""
 

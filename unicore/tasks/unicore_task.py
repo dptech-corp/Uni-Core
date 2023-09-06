@@ -301,6 +301,10 @@ class UnicoreTask(object):
         """Hook function called before the start of each epoch."""
         pass
 
+    def end_epoch(self, epoch, model):
+        """Hook function called after the end of each epoch."""
+        pass
+
     def begin_valid_epoch(self, epoch, model):
         """Hook function called before the start of each validation epoch."""
         pass
