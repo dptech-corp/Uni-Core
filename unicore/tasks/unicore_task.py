@@ -301,7 +301,7 @@ class UnicoreTask(object):
         """Hook function called before the start of each epoch."""
         pass
 
-    def end_epoch(self, epoch, model):
+    def end_epoch(self, epoch, model, loss):
         """Hook function called after the end of each epoch."""
         pass
 
