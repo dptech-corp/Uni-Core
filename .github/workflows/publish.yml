@@ -64,6 +64,7 @@ jobs:
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /opt/ghc
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
           pip --no-cache-dir install numpy pyyaml scipy ipython mkl mkl-include ninja cython typing pandas typing-extensions dataclasses
           pip --no-cache-dir install sympy networkx jinja2 cmake lit
           pip --no-cache-dir install torch==${{ matrix.torch-version }} --index-url https://download.pytorch.org/whl/cu${{ matrix.cuda-version }}
