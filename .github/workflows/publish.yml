@@ -77,8 +77,10 @@ jobs:
       - name: Install PyTorch ${{ matrix.torch-version }}+${{ matrix.cuda-version }}
         if: ${{ matrix.cuda-version == 'cpu' }}
         run: |
-          pip install numpy pyyaml scipy ipython mkl mkl-include ninja cython typing pandas typing-extensions dataclasses
-          pip install --no-cache-dir torch==${{ matrix.torch-version }}
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          pip --no-cache-dir install numpy pyyaml scipy ipython mkl mkl-include ninja cython typing pandas typing-extensions dataclasses
+          pip --no-cache-dir install torch==${{ matrix.torch-version }}
           python --version
           python -c "import torch; print('PyTorch:', torch.__version__)"
         shell:
