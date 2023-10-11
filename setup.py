@@ -232,9 +232,9 @@ setup(
         "setuptools>=18.0",
     ],
     install_requires=[
-        'numpy; python_version>="3.7"',
+        'numpy; python_version>="3.6"',
         "lmdb",
-        "torch>=1.11.0",
+        "torch>=1.10.0",
         "tqdm",
         "ml_collections",
         "scipy",
