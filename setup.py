@@ -239,7 +239,6 @@ setup(
         "ml_collections",
         "scipy",
         "tensorboardX",
-        "tokenizers",
         "wandb",
     ],
     packages=find_packages(
