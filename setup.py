@@ -24,7 +24,7 @@ for i, arg in enumerate(sys.argv):
 sys.argv = filtered_args
 
 
-if sys.version_info < (3, 7):
+if sys.version_info < (3, 6):
     sys.exit("Sorry, Python >= 3.7 is required for unicore.")
 
 
