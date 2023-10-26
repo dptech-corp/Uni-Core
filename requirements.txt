@@ -6,3 +6,4 @@ scipy
 tensorboardX
 tqdm
 tokenizers
+wandb
