@@ -7,7 +7,7 @@ from typing import Dict, Optional
 import torch
 from torch import Tensor, nn
 from .softmax_dropout import softmax_dropout
-
+from .common import Linear
 
 class SelfMultiheadAttention(nn.Module):
     def __init__(
@@ -30,8 +30,8 @@ class SelfMultiheadAttention(nn.Module):
         ), "embed_dim must be divisible by num_heads"
         self.scaling = (self.head_dim * scaling_factor) ** -0.5
 
-        self.in_proj = nn.Linear(embed_dim, embed_dim * 3, bias=bias)
-        self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
+        self.in_proj = Linear(embed_dim, embed_dim * 3, bias=bias, init="glorot")
+        self.out_proj = Linear(embed_dim, embed_dim, bias=bias, init="final")
 
     def forward(
         self,
@@ -139,11 +139,11 @@ class CrossMultiheadAttention(nn.Module):
         ), "embed_dim must be divisible by num_heads"
         self.scaling = (self.head_dim * scaling_factor) ** -0.5
 
-        self.q_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
-        self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
-        self.v_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
+        self.q_proj = nn.Linear(embed_dim, embed_dim, bias=bias, init="glorot")
+        self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias, init="glorot")
+        self.v_proj = nn.Linear(embed_dim, embed_dim, bias=bias, init="glorot")
 
-        self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
+        self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias, init="final")
 
     def forward(
         self,
