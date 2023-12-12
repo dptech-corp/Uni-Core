@@ -10,7 +10,7 @@ import torch
 import torch.nn.functional as F
 from unicore import utils
 from torch import nn
-from . import LayerNorm, SelfMultiheadAttention, CrossMultiheadAttention
+from . import LayerNorm, SelfMultiheadAttention, CrossMultiheadAttention, Linear
 
 class TransformerDecoderLayer(nn.Module):
     """
@@ -58,8 +58,8 @@ class TransformerDecoderLayer(nn.Module):
         # layer norm associated with the self attention layer
         self.encoder_attn_layer_norm = LayerNorm(self.embed_dim)
 
-        self.fc1 = nn.Linear(self.embed_dim, ffn_embed_dim, init="relu")
-        self.fc2 = nn.Linear(ffn_embed_dim, self.embed_dim, init="final")
+        self.fc1 = Linear(self.embed_dim, ffn_embed_dim, init="relu")
+        self.fc2 = Linear(ffn_embed_dim, self.embed_dim, init="final")
         self.final_layer_norm = LayerNorm(self.embed_dim)
         self.post_ln = post_ln
 
