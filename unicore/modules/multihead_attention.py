@@ -2,7 +2,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Dict, Optional
+from typing import Optional
 
 import torch
 from torch import Tensor, nn
@@ -139,11 +139,11 @@ class CrossMultiheadAttention(nn.Module):
         ), "embed_dim must be divisible by num_heads"
         self.scaling = (self.head_dim * scaling_factor) ** -0.5
 
-        self.q_proj = nn.Linear(embed_dim, embed_dim, bias=bias, init="glorot")
-        self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias, init="glorot")
-        self.v_proj = nn.Linear(embed_dim, embed_dim, bias=bias, init="glorot")
+        self.q_proj = Linear(embed_dim, embed_dim, bias=bias, init="glorot")
+        self.k_proj = Linear(embed_dim, embed_dim, bias=bias, init="glorot")
+        self.v_proj = Linear(embed_dim, embed_dim, bias=bias, init="glorot")
 
-        self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias, init="final")
+        self.out_proj = Linear(embed_dim, embed_dim, bias=bias, init="final")
 
     def forward(
         self,
