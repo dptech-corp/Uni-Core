@@ -8,6 +8,10 @@ class Linear(th.nn.Linear):
         bias: bool = True,
         init: str = "default",
     ):
+        """ Follows convention from AlphaFold 2. Promotes clean-path in resblocks.
+        See section 1.11.4 Parameters initialization in supplementary information
+        https://www.nature.com/articles/s41586-021-03819-2#Sec20
+        """
         super(Linear, self).__init__(d_in, d_out, bias=bias)
 
         self.use_bias = bias
@@ -51,3 +55,32 @@ class Linear(th.nn.Linear):
 
     def _normal_init(self):
         th.nn.init.kaiming_normal_(self.weight, nonlinearity="linear")
+
+
+class Embedding(th.nn.Embedding):
+    def __init__(
+        self,
+        *args,
+        init: str = "default",
+        **kwargs,
+    ):
+        """ Follows the SmallInitEmb trick from RWKV appendix F.
+        https://aclanthology.org/2023.findings-emnlp.936.pdf also see
+        https://github.com/BlinkDL/SmallInitEmb
+        """
+        super().__init__(*args, **kwargs)
+
+        if init == "default":
+            self._normal_init()
+        elif init == "small":
+            self._small_init(alpha=1e-4)
+        else:
+            raise ValueError("Invalid init method.")
+
+    def _normal_init(self):
+        th.nn.init.normal_(self.weight)
+        self._fill_padding_idx_with_zero()
+
+    def _small_init(self, alpha: float):
+        th.nn.init.uniform_(self.weight, a=-alpha, b=alpha)
+        self._fill_padding_idx_with_zero()
