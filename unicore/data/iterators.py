@@ -365,7 +365,7 @@ class EpochBatchIterator(EpochBatchIterating):
                     batches = np.concatenate(batches)
                     np.random.shuffle(batches)
                     batches = np.split(batches, lens[:-1])
-                # shuffles prepacked batchs
+                # shuffles prepacked batches, final order is batch_size dependent
                 else:
                     np.random.shuffle(batches)
             return batches
