@@ -184,6 +184,9 @@ class EpochBatchIterator(EpochBatchIterating):
             from workers. Should always be non-negative (default: ``0``).
         disable_shuffling (bool, optional): force disable shuffling
             (default: ``False``).
+        sample_shuffling: (bool, optional): if True, the sampler will shuffle the
+            samples and then batch them. Otherwise, prepacked batches will be shuffled.
+            `True` makes the order of samples in epoch independent of batch_size.
     """
 
     def __init__(
@@ -199,6 +202,7 @@ class EpochBatchIterator(EpochBatchIterating):
         buffer_size=0,
         timeout=0,
         disable_shuffling=False,
+        sample_shuffling=True,
     ):
         assert isinstance(dataset, torch.utils.data.Dataset)
         self.dataset = dataset
@@ -219,6 +223,7 @@ class EpochBatchIterator(EpochBatchIterating):
 
         self.epoch = max(epoch, 1)  # we use 1-based indexing for epochs
         self.shuffle = not disable_shuffling
+        self.sample_shuffling = sample_shuffling
         self._cur_epoch_itr = None
         self._next_epoch_itr = None
         self._supports_prefetch = getattr(dataset, "supports_prefetch", False)
@@ -354,7 +359,15 @@ class EpochBatchIterator(EpochBatchIterating):
     ):
         def shuffle_batches(batches, seed):
             with data_utils.numpy_seed(seed):
-                np.random.shuffle(batches)
+                # shuffles samples, then repacks into batches
+                if self.sample_shuffling:
+                    lens = np.cumsum([len(x) for x in batches])
+                    batches = np.concatenate(batches)
+                    np.random.shuffle(batches)
+                    batches = np.split(batches, lens[:-1])
+                # shuffles prepacked batchs
+                else:
+                    np.random.shuffle(batches)
             return batches
 
         if self._supports_prefetch:
