@@ -277,7 +277,6 @@ class UnicoreTask(object):
         model.set_num_updates(update_num)
         with torch.autograd.profiler.record_function("forward"):
             loss_val, sample_size, logging_output = loss(model, sample)
-            loss_val = loss_val / self.args.update_freq
 
         if ignore_grad:
             loss_val *= 0
