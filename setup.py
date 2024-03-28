@@ -64,7 +64,7 @@ if not torch.cuda.is_available() and not DISABLE_CUDA_EXTENSION:
     if os.environ.get("TORCH_CUDA_ARCH_LIST", None) is None:
         _, bare_metal_major, _ = get_cuda_bare_metal_version(cpp_extension.CUDA_HOME)
         if int(bare_metal_major) == 11:
-            os.environ["TORCH_CUDA_ARCH_LIST"] = "7.0;7.5;8.0"
+            os.environ["TORCH_CUDA_ARCH_LIST"] = "7.0;7.5;8.0;9.0"
         else:
             os.environ["TORCH_CUDA_ARCH_LIST"] = "7.0;7.5"
 
@@ -130,6 +130,7 @@ if not DISABLE_CUDA_EXTENSION:
                                             'nvcc':['-O3', '--use_fast_math',
                                                     '-gencode', 'arch=compute_70,code=sm_70',
                                                     '-gencode', 'arch=compute_80,code=sm_80',
+                                                    '-gencode', 'arch=compute_90,code=sm_90',
                                                     '-U__CUDA_NO_HALF_OPERATORS__',
                                                     '-U__CUDA_NO_BFLOAT16_OPERATORS__',
                                                     '-U__CUDA_NO_HALF_CONVERSIONS__',
@@ -146,6 +147,7 @@ if not DISABLE_CUDA_EXTENSION:
                                             'nvcc':['-O3', '--use_fast_math',
                                                     '-gencode', 'arch=compute_70,code=sm_70',
                                                     '-gencode', 'arch=compute_80,code=sm_80',
+                                                    '-gencode', 'arch=compute_90,code=sm_90',
                                                     '-U__CUDA_NO_HALF_OPERATORS__',
                                                     '-U__CUDA_NO_BFLOAT16_OPERATORS__',
                                                     '-U__CUDA_NO_HALF_CONVERSIONS__',
@@ -172,6 +174,7 @@ if not DISABLE_CUDA_EXTENSION:
                                             'nvcc':['-O3', '--use_fast_math',
                                                     '-gencode', 'arch=compute_70,code=sm_70',
                                                     '-gencode', 'arch=compute_80,code=sm_80',
+                                                    '-gencode', 'arch=compute_90,code=sm_90',
                                                     '-U__CUDA_NO_HALF_OPERATORS__',
                                                     '-U__CUDA_NO_BFLOAT16_OPERATORS__',
                                                     '-U__CUDA_NO_HALF_CONVERSIONS__',
@@ -189,6 +192,7 @@ if not DISABLE_CUDA_EXTENSION:
                                             'nvcc':['-O3', '--use_fast_math',
                                                     '-gencode', 'arch=compute_70,code=sm_70',
                                                     '-gencode', 'arch=compute_80,code=sm_80',
+                                                    '-gencode', 'arch=compute_90,code=sm_90',
                                                     '-U__CUDA_NO_HALF_OPERATORS__',
                                                     '-U__CUDA_NO_BFLOAT16_OPERATORS__',
                                                     '-U__CUDA_NO_HALF_CONVERSIONS__',
@@ -206,6 +210,7 @@ if not DISABLE_CUDA_EXTENSION:
                                             'nvcc':['-O3', '--use_fast_math', '-maxrregcount=50',
                                                     '-gencode', 'arch=compute_70,code=sm_70',
                                                     '-gencode', 'arch=compute_80,code=sm_80',
+                                                    '-gencode', 'arch=compute_90,code=sm_90',
                                                     '-U__CUDA_NO_HALF_OPERATORS__',
                                                     '-U__CUDA_NO_BFLOAT16_OPERATORS__',
                                                     '-U__CUDA_NO_HALF_CONVERSIONS__',
