@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/pytorch:22.05-py3
+FROM nvcr.io/nvidia/pytorch:23.04-py3
 
 RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
     rm -rf /var/lib/apt/lists/* \
@@ -50,31 +50,25 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
         nfs-common \
         bc
 
-RUN  pip uninstall -y torch torchvision torchtext && \
-pip uninstall -y torch torchvision torchtext && \
-rm -rf ~/.cache/pip && \
-conda clean -ya
-
-RUN conda install -y pyyaml tensorboardX && \
-    conda clean -ya
-
-# RUN ldconfig
 
 # # ==================================================================
 # # pytorch
 # # ------------------------------------------------------------------
-ENV TORCH_CUDA_ARCH_LIST "7.0;7.5;8.0"
-
-RUN conda install -y ninja typing && \
-    conda clean -ya
+ENV TORCH_CUDA_ARCH_LIST "7.0;7.5;8.0;9.0"
 
 RUN pip3 install --upgrade sentry-sdk requests
-
-RUN pip3 install torch==2.0.1+cu117  --index-url https://download.pytorch.org/whl/cu117 && rm -rf ~/.cache/pip
 
 RUN cd /tmp && \
     git clone https://github.com/dptech-corp/Uni-Core && \
     cd Uni-Core && \
+    python setup.py install && \
+    rm -rf  /tmp/* && rm -rf ~/.cache/pip 
+
+RUN pip3 uninstall flash_attn -y
+
+RUN cd /tmp && \
+    git clone https://github.com/Dao-AILab/flash-attention.git && \
+    cd flash-attention && \
     python setup.py install && \
     rm -rf  /tmp/* && rm -rf ~/.cache/pip 
 
@@ -83,5 +77,4 @@ RUN pip3 install --no-cache-dir tokenizers lmdb biopython ml-collections timeout
 RUN ldconfig && \
     apt-get clean && \
     apt-get autoremove && \
-    rm -rf /var/lib/apt/lists/* /tmp/* && \
-    conda clean -ya
+    rm -rf /var/lib/apt/lists/* /tmp/*
