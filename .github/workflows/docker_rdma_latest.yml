@@ -4,10 +4,11 @@ on:
   push:
     branches:
     - main
+    - cuda12
 
 jobs:
   docker:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       -
         name: Checkout
@@ -25,9 +26,9 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       -
-        name: Build and push cu117 with rdma
+        name: Build and push cu12.4 with rdma
         uses: docker/build-push-action@v3
         with:
           context: ./docker/rdma/
           push: true
-          tags: dptechnology/unicore:latest-pytorch2.0.1-cuda11.7-rdma
+          tags: dptechnology/unicore:latest-pytorch2.3.0-cuda12.4-rdma
