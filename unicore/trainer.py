@@ -514,7 +514,9 @@ class Trainer(object):
             data_buffer_size=self.args.data_buffer_size,
             disable_iterator_cache=disable_iterator_cache,
         )
-        self.reset_dummy_batch(batch_iterator.first_batch)
+        # Using training data for dummy batch. If the following line is enabled, the dummy batch will be from validation data, 
+        # and cause OOM error for some corner case during training. So disable it. 
+        # self.reset_dummy_batch(batch_iterator.first_batch)
         return batch_iterator
 
     def begin_epoch(self, epoch):
