@@ -327,7 +327,11 @@ def all_gather_list(data, group=None, max_size=16384):
         not hasattr(all_gather_list, "_buffer")
         or all_gather_list._buffer.numel() < buffer_size
     ):
-        all_gather_list._buffer = torch.cuda.ByteTensor(buffer_size)
+        all_gather_list._buffer = torch.tensor(
+            data=[0] * buffer_size,  # Initialize with zeros
+            dtype=torch.uint8,       # Byte tensor corresponds to uint8
+            device='cuda'            # Specify the device as CUDA
+        )
         all_gather_list._cpu_buffer = torch.ByteTensor(max_size).pin_memory()
     buffer = all_gather_list._buffer
     buffer.zero_()
