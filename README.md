@@ -36,6 +36,20 @@ Example
 
 To build a model, you can refer to [example/bert](https://github.com/dptech-corp/Uni-Core/tree/main/examples/bert). 
 
+FSDP Example
+-------
+
+To use FSDP distributed training, you can refer to [example/bert/train_bert_test_fsdp.sh](https://github.com/dptech-corp/Uni-Core/tree/main/examples/bert). 
+
+- Install the fairscale: `pip install fairscale`.
+- Modify the original training scripts, set `--ddp-backend fully_sharded`.
+
+Note
+- Currently only `--fp16` is supported in `fully_sharded` backend.
+- while FSDP is full compatible with pointwise Optimizers (e.g., Adam, AdamW, Adadelta, Adamax, SGD, etc.), it is not currently compatible with non-pointwise Optimizers (e.g., Adagrad, Adafactor, LAMB, etc.)
+- FSDP depends on flattening the parameters, so models that currently require `--fp16-no-flatten-grads` may not be supported.
+
+
 Related projects
 ----------------
 

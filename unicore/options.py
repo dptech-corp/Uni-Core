@@ -286,7 +286,7 @@ def add_distributed_training_args(parser):
     group.add_argument('--distributed-no-spawn', action='store_true',
                        help='do not spawn multiple processes even if multiple GPUs are visible')
     group.add_argument('--ddp-backend', default='c10d', type=str,
-                       choices=['c10d', 'apex', 'no_c10d'],
+                       choices=['c10d', 'apex', 'no_c10d', 'fully_sharded'],
                        help='DistributedDataParallel backend')
     group.add_argument('--bucket-cap-mb', default=25, type=int, metavar='MB',
                        help='bucket size for reduction')
@@ -308,6 +308,22 @@ def add_distributed_training_args(parser):
                             "a node is very fast. Hence, we do allreduce across GPUs in a node, "
                             "and gossip across different nodes")
     # fmt: on
+    # configuration for --ddp-backend=fully_sharded
+    group.add_argument('--load-checkpoint-on-all-dp-ranks',  default=False,
+                        help="load checkpoints on all data parallel devices"
+                         "(default: only load on rank 0 and broadcast to other devices)")
+    group.add_argument('--zero-sharding',  default=None, help="ZeRO sharding", choices=['None', 'os'])
+    group.add_argument('--model-parallel-size',  default=1, help="total number of GPUs to parallelize model over")
+    group.add_argument('--memory-efficient-fp16',  default=False,
+                        help="use a memory-efficient version of FP16 training; implies --fp16")
+    group.add_argument('--no-reshard-after-forward',  default=False,
+                        help="don't reshard parameters after forward pass")
+    group.add_argument('--fp32-reduce-scatter',  default=False, help="reduce-scatter grads in FP32")
+    group.add_argument('--cpu-offload',  default=False, help="offload FP32 params to CPU")
+    group.add_argument('--use-sharded-state',  default=False, help="use sharded checkpoint files")
+    group.add_argument('--not-fsdp-flatten-parameters',  default=False,
+                        help="not flatten parameter param for fsdp")
+
     return group
 
 
