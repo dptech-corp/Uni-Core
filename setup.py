@@ -14,11 +14,11 @@ import sys
 
 from setuptools import find_packages, setup
 
-DISABLE_CUDA_EXTENSION = False
+DISABLE_CUDA_EXTENSION = True
 filtered_args = []
 for i, arg in enumerate(sys.argv):
-    if arg == '--disable-cuda-ext':
-        DISABLE_CUDA_EXTENSION = True
+    if arg == '--enable-cuda-ext':
+        DISABLE_CUDA_EXTENSION = False
         continue
     filtered_args.append(arg)
 sys.argv = filtered_args
@@ -239,8 +239,8 @@ setup(
     install_requires=[
         'numpy; python_version>="3.7"',
         "lmdb",
-        "torch>=2.0.0",
         "tqdm",
+        "torch>=2.0.0",
         "ml_collections",
         "scipy",
         "tensorboardX",
