@@ -88,9 +88,10 @@ class Trainer(object):
 
         if self.cuda and self.data_parallel_world_size > 1:
             self._grad_norm_buf = torch.tensor(
-                data=[0.0] * self.data_parallel_world_size,  # Initialize with zeros or appropriate values
+                data=[0.0]
+                * self.data_parallel_world_size,  # Initialize with zeros or appropriate values
                 dtype=torch.double,  # Set the desired data type
-                device='cuda'
+                device="cuda",
             )
         else:
             self._grad_norm_buf = None
@@ -114,11 +115,12 @@ class Trainer(object):
         if args.validate_with_ema:
             assert args.ema_decay > 0, "valid with ema must with ema_decay > 0"
 
+        model = self.model
         if args.ema_decay > 0 and (
             self.data_parallel_rank == 0 or args.validate_with_ema
         ):
 
-            assert (self.args.fp16 or self.args.bf16), "ema must with fp16 or bf16"
+            assert self.args.fp16 or self.args.bf16, "ema must with fp16 or bf16"
             self.ema = ExponentialMovingAverageModel(
                 model,
                 args.ema_decay,
@@ -518,8 +520,8 @@ class Trainer(object):
             data_buffer_size=self.args.data_buffer_size,
             disable_iterator_cache=disable_iterator_cache,
         )
-        # Using training data for dummy batch. If the following line is enabled, the dummy batch will be from validation data, 
-        # and cause OOM error for some corner case during training. So disable it. 
+        # Using training data for dummy batch. If the following line is enabled, the dummy batch will be from validation data,
+        # and cause OOM error for some corner case during training. So disable it.
         # self.reset_dummy_batch(batch_iterator.first_batch)
         return batch_iterator
 
