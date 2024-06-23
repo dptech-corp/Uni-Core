@@ -106,12 +106,9 @@ def _infer_single_node_init(args):
     args.distributed_init_method = "tcp://localhost:{port}".format(port=port)
 
 
-
 def distributed_init(args):
     if torch.distributed.is_available() and torch.distributed.is_initialized():
-        warnings.warn(
-            "Distributed is already initialized, cannot initialize twice!"
-        )
+        warnings.warn("Distributed is already initialized, cannot initialize twice!")
     else:
         logger.info(
             "distributed init (rank {}): {}".format(
@@ -143,7 +140,6 @@ def distributed_init(args):
         logging.getLogger().setLevel(logging.INFO)
     else:
         logging.getLogger().setLevel(logging.WARNING)
-
 
     return args.distributed_rank
 
@@ -187,29 +183,10 @@ def call_main(args, main, **kwargs):
                 join=True,
             )
         else:
-            distributed_main(int(os.environ['LOCAL_RANK']), main, args, kwargs)
+            distributed_main(int(os.environ["LOCAL_RANK"]), main, args, kwargs)
     else:
         # single GPU main
         main(args, **kwargs)
-
-
-def new_groups(grouped_ranks: List[List[int]]):
-    groups = [dist.new_group(g) for g in grouped_ranks]
-    my_group_idx = _find_my_group_index(grouped_ranks)
-    return groups[my_group_idx]
-
-
-def _find_my_group_index(grouped_ranks):
-    my_rank = get_global_rank()
-    for i, group in enumerate(grouped_ranks):
-        if my_rank in group:
-            return i
-    raise RuntimeError
-
-
-def _find_my_group(grouped_ranks):
-    index = _find_my_group_index(grouped_ranks)
-    return grouped_ranks[index]
 
 
 def get_rank(group):
@@ -224,14 +201,7 @@ def get_world_size(group):
 
 
 def get_global_group():
-    if torch.distributed.is_initialized():
-        if not hasattr(get_global_group, "_global_group"):
-            # ideally we could use torch.distributed.group.WORLD, but it seems
-            # to cause random NCCL hangs in some cases
-            get_global_group._global_group = dist.new_group()
-        return get_global_group._global_group
-    else:
-        return None
+    return None
 
 
 def get_global_rank():
@@ -329,8 +299,8 @@ def all_gather_list(data, group=None, max_size=16384):
     ):
         all_gather_list._buffer = torch.tensor(
             data=[0] * buffer_size,  # Initialize with zeros
-            dtype=torch.uint8,       # Byte tensor corresponds to uint8
-            device='cuda'            # Specify the device as CUDA
+            dtype=torch.uint8,  # Byte tensor corresponds to uint8
+            device="cuda",  # Specify the device as CUDA
         )
         all_gather_list._cpu_buffer = torch.ByteTensor(max_size).pin_memory()
     buffer = all_gather_list._buffer
