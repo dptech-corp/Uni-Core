@@ -56,7 +56,7 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
 # # ------------------------------------------------------------------
 ENV TORCH_CUDA_ARCH_LIST "7.0;7.5;8.0;9.0"
 
-RUN pip3 install --upgrade sentry-sdk requests
+RUN pip3 install --no-cache-dir --upgrade sentry-sdk requests ninja typing packaging && rm -rf ~/.cache/pip
 
 RUN cd /tmp && \
     git clone https://github.com/dptech-corp/Uni-Core && \
@@ -66,7 +66,7 @@ RUN cd /tmp && \
 
 RUN pip3 install --no-cache-dir tokenizers lmdb biopython ml-collections timeout-decorator urllib3 tree dm-tree && rm -rf ~/.cache/pip 
 
-RUN MAX_JOBS=4 pip3 install -U 'flash-attn<2.5.0' --no-build-isolation --no-cache-dir
+RUN MAX_JOBS=1 pip3 install -U 'flash-attn<2.5.0' --no-build-isolation --no-cache-dir
 
 RUN ldconfig && \
     apt-get clean && \
