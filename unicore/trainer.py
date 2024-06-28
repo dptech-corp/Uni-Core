@@ -119,8 +119,6 @@ class Trainer(object):
         if args.ema_decay > 0 and (
             self.data_parallel_rank == 0 or args.validate_with_ema
         ):
-
-            assert self.args.fp16 or self.args.bf16, "ema must with fp16 or bf16"
             self.ema = ExponentialMovingAverageModel(
                 model,
                 args.ema_decay,
@@ -695,7 +693,10 @@ class Trainer(object):
                     )
             if self.ema is not None:
                 with torch.autograd.profiler.record_function("ema"):
-                    self.ema.update(self.optimizer.fp32_params)
+                    if self.args.fp16 or self.args.bf16:
+                        self.ema.update(self.optimizer.fp32_params, is_flattened=True)
+                    else:
+                        self.ema.update(self.model.named_parameters(), is_flattened=False)
 
         except FloatingPointError:
             # re-run the forward and backward pass with hooks attached to print
