@@ -299,8 +299,10 @@ class Trainer(object):
         filename,
         reset_optimizer=False,
         reset_lr_scheduler=False,
+        reset_dataloader=False,
         optimizer_overrides=None,
         reset_meters=False,
+        **passthrough_args,
     ):
         """
         Load all training state from a checkpoint file.
@@ -396,6 +398,45 @@ class Trainer(object):
                 self.ema = ExponentialMovingAverageModel(
                     self._model, decay=self.ema.decay
                 )
+        
+        loaded_train_itr = False
+        if extra_state is not None:
+            itr_state = extra_state["train_iterator"]
+            epoch = itr_state["epoch"]
+
+            if "previous_training_time" in extra_state:
+                self._previous_training_time = extra_state["previous_training_time"]
+                self._start_time = time.time()
+
+            if (
+                itr_state.get("version", 1) >= 2
+                and itr_state["iterations_in_epoch"] == 0
+            ):
+                # reset meters at start of epoch
+                reset_meters = True
+
+            if "metrics" in extra_state and not reset_meters:
+                metrics.load_state_dict(extra_state["metrics"])
+
+                # reset TimeMeters, since their start times don't make sense anymore
+                for meter in metrics.get_meters("default"):
+                    if isinstance(meter, meters.TimeMeter):
+                        meter.reset()
+
+            if not reset_dataloader:
+                # restore iterator from checkpoint
+                epoch_itr = self.get_train_iterator(
+                    epoch=itr_state["epoch"], load_dataset=True, **passthrough_args
+                )
+                epoch_itr.load_state_dict(itr_state)
+                loaded_train_itr = True
+
+        if not loaded_train_itr:
+            epoch_itr = self.get_train_iterator(
+                epoch=1, load_dataset=True, **passthrough_args
+            )
+
+        self.init_total_train_steps(epoch_itr)
 
         if last_optim_state is not None and not reset_optimizer:
             # rebuild optimizer after loading model, since params may have changed
@@ -417,45 +458,23 @@ class Trainer(object):
 
             self.set_num_updates(last_optim["num_updates"])
 
-        if extra_state is not None:
-            itr_state = extra_state["train_iterator"]
-            epoch = itr_state["epoch"]
-
-            if "previous_training_time" in extra_state:
-                self._previous_training_time = extra_state["previous_training_time"]
-                self._start_time = time.time()
-
-            # self.lr_step(epoch)
-
-            if (
-                itr_state.get("version", 1) >= 2
-                and itr_state["iterations_in_epoch"] == 0
-            ):
-                # reset meters at start of epoch
-                reset_meters = True
-
-            if "metrics" in extra_state and not reset_meters:
-                metrics.load_state_dict(extra_state["metrics"])
-
-                # reset TimeMeters, since their start times don't make sense anymore
-                for meter in metrics.get_meters("default"):
-                    if isinstance(meter, meters.TimeMeter):
-                        meter.reset()
-
-            logger.info(
-                "Loaded checkpoint {} (epoch {} @ {} updates)".format(
-                    filename, epoch, self.get_num_updates()
+        if had_loaded_model:
+            if loaded_train_itr:
+                logger.info(
+                    "Loaded checkpoint {} (epoch {} @ {} updates)".format(
+                        filename, epoch, self.get_num_updates()
+                    )
                 )
-            )
-
-        elif had_loaded_model:
-            logger.info("Loaded checkpoint {}".format(filename))
+            else:
+                logger.info("Loaded checkpoint {}".format(filename))
         elif ema_loaded:
             logger.info("Loaded ema state from checkpoint {}".format(filename))
         else:
             logger.info("No existing checkpoint found {}".format(filename))
 
-        return extra_state
+        self.lr_step(epoch_itr.epoch)
+
+        return extra_state, epoch_itr
 
     def get_train_iterator(
         self,

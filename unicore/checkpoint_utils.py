@@ -18,6 +18,7 @@ import torch
 
 logger = logging.getLogger(__name__)
 
+
 # async ckp copy
 def ckp_copy_fun(src, checkpoints, end_of_epoch, args):
     has_copy = False
@@ -35,6 +36,7 @@ def ckp_copy_fun(src, checkpoints, end_of_epoch, args):
         if can_delete and has_copy and os.path.lexists(src):
             logger.info("removing temp file {} ...".format(src))
             os.remove(src)
+
         def remove_ckps(root_path):
             if not end_of_epoch and args.keep_interval_updates > 0:
                 # remove old checkpoints; checkpoints are sorted in descending order
@@ -48,7 +50,9 @@ def ckp_copy_fun(src, checkpoints, end_of_epoch, args):
 
             if args.keep_last_epochs >= 0:
                 # remove old epoch checkpoints; checkpoints are sorted in descending order
-                checkpoints = checkpoint_paths(root_path, pattern=r"checkpoint(\d+)\.pt")
+                checkpoints = checkpoint_paths(
+                    root_path, pattern=r"checkpoint(\d+)\.pt"
+                )
                 for old_chk in checkpoints[args.keep_last_epochs :]:
                     if os.path.lexists(old_chk):
                         os.remove(old_chk)
@@ -68,11 +72,13 @@ def ckp_copy_fun(src, checkpoints, end_of_epoch, args):
                     if os.path.lexists(old_chk):
                         os.remove(old_chk)
                         logger.info("removed {}".format(old_chk))
+
         remove_ckps(args.save_dir)
     except:
         logger.info("remove old ckps error")
 
     logger.info("finished async ckp saving.")
+
 
 def save_checkpoint(args, trainer, epoch_itr, val_loss, ckp_copy_thread, do_save=True):
     from unicore import meters
@@ -107,7 +113,9 @@ def save_checkpoint(args, trainer, epoch_itr, val_loss, ckp_copy_thread, do_save
     suffix = trainer.checkpoint_suffix
     checkpoint_conds = collections.OrderedDict()
     checkpoint_conds["checkpoint{}{}.pt".format(epoch, suffix)] = (
-        end_of_epoch and not args.no_epoch_checkpoints and epoch % args.save_interval == 0
+        end_of_epoch
+        and not args.no_epoch_checkpoints
+        and epoch % args.save_interval == 0
     )
     checkpoint_conds["checkpoint_{}_{}{}.pt".format(epoch, updates, suffix)] = (
         not end_of_epoch
@@ -124,9 +132,9 @@ def save_checkpoint(args, trainer, epoch_itr, val_loss, ckp_copy_thread, do_save
         ] = not hasattr(save_checkpoint, "best") or is_better(
             val_loss, save_checkpoint.best
         )
-    checkpoint_conds[
-        "checkpoint_last{}.pt".format(suffix)
-    ] = not args.no_last_checkpoints
+    checkpoint_conds["checkpoint_last{}.pt".format(suffix)] = (
+        not args.no_last_checkpoints
+    )
 
     extra_state = {"train_iterator": epoch_itr.state_dict(), "val_loss": val_loss}
     if hasattr(save_checkpoint, "best"):
@@ -136,12 +144,16 @@ def save_checkpoint(args, trainer, epoch_itr, val_loss, ckp_copy_thread, do_save
         os.path.join(args.save_dir, fn) for fn, cond in checkpoint_conds.items() if cond
     ]
     tmp_checkpoints = [
-        os.path.join(args.tmp_save_dir, fn) for fn, cond in checkpoint_conds.items() if cond
+        os.path.join(args.tmp_save_dir, fn)
+        for fn, cond in checkpoint_conds.items()
+        if cond
     ]
     if len(checkpoints) > 0:
         trainer.save_checkpoint(tmp_checkpoints[0], extra_state)
         if ckp_copy_thread is not None:
-            ckp_copy_thread.apply_async(ckp_copy_fun, (tmp_checkpoints[0], checkpoints, end_of_epoch, args))
+            ckp_copy_thread.apply_async(
+                ckp_copy_fun, (tmp_checkpoints[0], checkpoints, end_of_epoch, args)
+            )
         write_timer.stop()
         logger.info(
             "Saved checkpoint {} (epoch {} @ {} updates, score {}) (writing took {} seconds)".format(
@@ -208,12 +220,14 @@ def load_checkpoint(args, trainer, **passthrough_args):
             "can not be specified together: " + str(args)
         )
 
-    extra_state = trainer.load_checkpoint(
+    extra_state, epoch_itr = trainer.load_checkpoint(
         checkpoint_path,
         reset_optimizer,
         reset_lr_scheduler,
+        reset_dataloader,
         optimizer_overrides,
         reset_meters=reset_meters,
+        **passthrough_args,
     )
 
     if (
@@ -223,21 +237,6 @@ def load_checkpoint(args, trainer, **passthrough_args):
         and not reset_meters
     ):
         save_checkpoint.best = extra_state["best"]
-
-    if extra_state is not None and not reset_dataloader:
-        # restore iterator from checkpoint
-        itr_state = extra_state["train_iterator"]
-        epoch_itr = trainer.get_train_iterator(
-            epoch=itr_state["epoch"], load_dataset=True, **passthrough_args
-        )
-        epoch_itr.load_state_dict(itr_state)
-    else:
-        epoch_itr = trainer.get_train_iterator(
-            epoch=1, load_dataset=True, **passthrough_args
-        )
-
-    trainer.init_total_train_steps(epoch_itr)
-    trainer.lr_step(epoch_itr.epoch)
 
     return extra_state, epoch_itr
 
@@ -255,7 +254,6 @@ def load_checkpoint_to_cpu(path, arg_overrides=None, load_on_all_ranks=True):
         args = state["args"]
         for arg_name, arg_val in arg_overrides.items():
             setattr(args, arg_name, arg_val)
-
 
     return state
 
