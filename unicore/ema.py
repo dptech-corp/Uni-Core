@@ -8,7 +8,7 @@ class ExponentialMovingAverageModel:
     def __init__(self, model, decay, init_param=None):
         self.model_ema = deepcopy(model).float()
         self.decay = decay
-        self.param = self.flatten_parameters(model, init_param)
+        self.name2param, self.param = self.flatten_parameters(model, init_param)
 
     def flatten_parameters(self, model, init_param):
         # get ordered name
@@ -40,13 +40,22 @@ class ExponentialMovingAverageModel:
         if init_param is not None:
             assert torch.allclose(init_param, flatten_param), "ema init error!"
         torch.cuda.empty_cache()
-        return flatten_param
+        return name2param, flatten_param
 
-    def update(self, new_param):
-        with torch.no_grad():
-            diff = self.param - new_param
-            diff *= 1 - self.decay
-            self.param -= diff
+    def update_one_param(self, ema_param, new_param):
+        diff = ema_param - new_param
+        diff *= 1 - self.decay
+        ema_param -= diff
+
+    def update(self, new_param, is_flattened):
+        if is_flattened:
+            with torch.no_grad():
+                self.update_one_param(self.param, new_param)
+        else:
+            with torch.no_grad():
+                for n, p in new_param:
+                    if n in self.name2param:
+                        self.update_one_param(self.name2param[n], p)
 
     def load_state_dict(self, state_dict):
         self.model_ema.load_state_dict(state_dict["params"])
