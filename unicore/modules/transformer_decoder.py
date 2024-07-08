@@ -11,6 +11,8 @@ import torch.nn.functional as F
 from . import TransformerDecoderLayer, LayerNorm
 from .transformer_encoder import relative_position_bucket
 
+from unicore.distributed import fsdp_wrap
+
 
 def fill_with_neg_inf(t):
     return t.fill_(float("-inf"))
@@ -60,16 +62,18 @@ class TransformerDecoder(nn.Module):
 
         self.layers = nn.ModuleList(
             [
-                TransformerDecoderLayer(
-                    embed_dim=self.embed_dim,
-                    ffn_embed_dim=ffn_embed_dim,
-                    attention_heads=attention_heads,
-                    dropout=dropout,
-                    attention_dropout=attention_dropout,
-                    activation_dropout=activation_dropout,
-                    activation_fn=activation_fn,
-                    post_ln=post_ln,
+                fsdp_wrap(
+                    TransformerDecoderLayer(
+                        embed_dim=self.embed_dim,
+                        ffn_embed_dim=ffn_embed_dim,
+                        attention_heads=attention_heads,
+                        dropout=dropout,
+                        attention_dropout=attention_dropout,
+                        activation_dropout=activation_dropout,
+                        activation_fn=activation_fn,
+                        post_ln=post_ln,
 
+                    )
                 )
                 for _ in range(decoder_layers)
             ]

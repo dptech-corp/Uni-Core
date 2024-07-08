@@ -95,7 +95,11 @@ def save_checkpoint(args, trainer, epoch_itr, val_loss, ckp_copy_thread, do_save
     if args.no_save or not do_save:
         return
 
+    trainer.consolidate_optimizer()
+
     if not trainer.should_save_checkpoint_on_current_rank:
+        if trainer.always_call_state_dict_during_save_checkpoint:
+            trainer.state_dict()
         return
 
     write_timer = meters.StopwatchMeter()

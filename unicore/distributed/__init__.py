@@ -7,6 +7,15 @@
 from .module_proxy_wrapper import ModuleProxyWrapper
 from .legacy_distributed_data_parallel import LegacyDistributedDataParallel
 
+from .fully_sharded_data_parallel import (
+    fsdp_enable_wrap,
+    fsdp_wrap,
+    FullyShardedDataParallel,
+)
+
 __all__ = [
     "ModuleProxyWrapper",
+    "fsdp_enable_wrap",
+    "fsdp_wrap",
+    "FullyShardedDataParallel",
 ]
