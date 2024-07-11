@@ -163,7 +163,10 @@ if not DISABLE_CUDA_EXTENSION:
                                 'csrc/adam/adam_kernel.cu'],
                         include_dirs=[os.path.join(this_dir, 'csrc')],
                         extra_compile_args={'cxx': ['-O3'],
-                                            'nvcc':['-O3', '--use_fast_math']}))
+                                            'nvcc':['-O3', '--use_fast_math',
+                                                    '-gencode', 'arch=compute_70,code=sm_70',
+                                                    '-gencode', 'arch=compute_80,code=sm_80',
+                                                    '-gencode', 'arch=compute_90,code=sm_90']}))
 
     ext_modules.append(
         CUDAExtension(name='unicore_fused_softmax_dropout',
