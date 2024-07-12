@@ -5,6 +5,7 @@ on:
     branches:
     - main
     - cuda12
+    - cuda12-fa3
 
 jobs:
   docker:
@@ -60,5 +61,5 @@ jobs:
           context: ./docker/rdma/
           push: true
           tags: |
-            dptechnology/unicore:latest-pytorch2.3.0-cuda12.4-rdma
-            dp-ve-registry-cn-beijing.cr.volces.com/dplc/unicore:latest-pytorch2.3.0-cuda12.4-rdma
+            dptechnology/unicore:latest-pytorch2.3.0-cuda12.4-rdma-fa3
+            dp-ve-registry-cn-beijing.cr.volces.com/dplc/unicore:latest-pytorch2.3.0-cuda12.4-rdma-fa3
