@@ -69,6 +69,7 @@ RUN pip3 install --no-cache-dir tokenizers lmdb biopython ml-collections timeout
 RUN cd /tmp && \
     git clone https://github.com/Dao-AILab/flash-attention.git && \
     cd flash-attention && \
+    git checkout v2.6.1 && \
     python setup.py install && \
     cd hopper && \
     python setup.py install && \
