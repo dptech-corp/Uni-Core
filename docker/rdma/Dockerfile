@@ -66,7 +66,7 @@ RUN cd /tmp && \
 
 RUN pip3 install --no-cache-dir tokenizers lmdb biopython ml-collections timeout-decorator urllib3 tree dm-tree && rm -rf ~/.cache/pip 
 
-RUN MAX_JOBS=1 pip3 install -U 'flash-attn<2.5.0' --no-build-isolation --no-cache-dir
+RUN MAX_JOBS=1 pip3 install -U 'flash-attn==2.6.1' --no-build-isolation --no-cache-dir
 
 RUN ldconfig && \
     apt-get clean && \
