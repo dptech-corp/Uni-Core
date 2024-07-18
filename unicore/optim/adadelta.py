@@ -13,7 +13,7 @@ from . import UnicoreOptimizer, register_optimizer
 class Adadelta(UnicoreOptimizer):
     def __init__(self, args, params):
         super().__init__(args)
-        self._optimizer = torch.optim.Adadelta(params, **self.optimizer_config)
+        self._optimizer = torch.optim.Adadelta(params, fused=args.use_fused_optimizer, **self.optimizer_config)
 
     @staticmethod
     def add_args(parser):
