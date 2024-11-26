@@ -188,4 +188,16 @@ class UnicoreOptimizer(object):
             return self.optimizer.supports_flat_params
         return False
 
+    def average_params(self):
+        pass
+
+    def broadcast_global_state_dict(self, state_dict):
+        """
+        Broadcasts a global state dict to all ranks.
+        Useful for optimizers that shard state between ranks.
+        """
+        if hasattr(self.optimizer, "broadcast_global_state_dict"):
+            return self.optimizer.broadcast_global_state_dict(state_dict)
+        else:
+            return state_dict
 
