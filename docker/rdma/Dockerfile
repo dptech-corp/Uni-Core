@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/pytorch:24.10-py3
+FROM nvcr.io/nvidia/pytorch:24.11-py3
 
 RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
     rm -rf /var/lib/apt/lists/* \
@@ -43,7 +43,6 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
         libpci-dev \
         libaio-dev \
         libcap2 \
-        libtinfo5 \
         fakeroot \
         devscripts \
         debhelper \
