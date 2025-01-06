@@ -61,5 +61,5 @@ jobs:
           context: ./docker/rdma/
           push: true
           tags: |
-            dptechnology/unicore:latest-pytorch2.6.0-cuda12.6-rdma
-            dp-ve-registry-cn-beijing.cr.volces.com/dplc/unicore:latest-pytorch2.6.0-cuda12.6-rdma
+            dptechnology/unicore:latest-pytorch2.5.0-cuda12.5-rdma
+            dp-ve-registry-cn-beijing.cr.volces.com/dplc/unicore:latest-pytorch2.5.0-cuda12.5-rdma
