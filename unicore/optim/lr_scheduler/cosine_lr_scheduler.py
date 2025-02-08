@@ -48,6 +48,12 @@ class CosineLRSchedule(UnicoreLRScheduler):
             self.max_lr > args.min_lr
         ), f"max_lr (={args.lr}) must be more than min_lr (={args.min_lr})"
 
+        assert total_train_steps is not None
+        if self.args.warmup_ratio > 0:
+            self.warmup_updates = int(self.args.warmup_ratio * total_train_steps)
+        else:
+            self.warmup_updates = args.warmup_updates
+
         warmup_end_lr = self.max_lr
         if args.warmup_init_lr < 0:
             args.warmup_init_lr = args.min_lr
@@ -56,18 +62,14 @@ class CosineLRSchedule(UnicoreLRScheduler):
         self.period = args.lr_period_updates
 
         if self.period <= 0:
-            assert (
-                args.max_update > 0
-            ), "Either --max_update or --lr-period-updates must be set"
-            self.period = args.max_update - args.warmup_updates
+            self.period = total_train_steps - self.warmup_updates
 
-        if args.warmup_updates > 0:
+        if self.warmup_updates > 0:
             # linearly warmup for the first args.warmup_updates
-            self.lr_step = (warmup_end_lr - args.warmup_init_lr) / args.warmup_updates
+            self.lr_step = (warmup_end_lr - args.warmup_init_lr) / self.warmup_updates
         else:
             self.lr_step = 1
 
-        self.warmup_updates = args.warmup_updates
         self.lr_shrink = args.lr_shrink
 
         # initial learning rate
@@ -80,6 +82,8 @@ class CosineLRSchedule(UnicoreLRScheduler):
         # fmt: off
         parser.add_argument('--warmup-updates', default=0, type=int, metavar='N',
                             help='warmup the learning rate linearly for the first N updates')
+        parser.add_argument('--warmup-ratio', default=-1.0, type=float, metavar='N',
+                            help='warmup the learning rate linearly for the first N-percent updates')
         parser.add_argument('--warmup-init-lr', default=-1, type=float, metavar='LR',
                             help='initial learning rate during warmup phase; default is args.lr')
         parser.add_argument('--min-lr', type=float, metavar='LR',
@@ -102,10 +106,10 @@ class CosineLRSchedule(UnicoreLRScheduler):
 
     def step_update(self, num_updates):
         """Update the learning rate after each update."""
-        if num_updates < self.args.warmup_updates:
+        if num_updates < self.warmup_updates:
             self.lr = self.args.warmup_init_lr + num_updates * self.lr_step
         else:
-            curr_updates = num_updates - self.args.warmup_updates
+            curr_updates = num_updates - self.warmup_updates
             if self.t_mult != 1:
                 i = math.floor(
                     math.log(
