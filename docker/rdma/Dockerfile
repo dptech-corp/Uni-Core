@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/pytorch:24.03-py3
+FROM nvcr.io/nvidia/pytorch:24.10-py3
 
 RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
     rm -rf /var/lib/apt/lists/* \
@@ -66,12 +66,6 @@ RUN cd /tmp && \
 
 RUN pip3 install --no-cache-dir tokenizers lmdb biopython ml-collections timeout-decorator urllib3 tree dm-tree && rm -rf ~/.cache/pip 
 
-RUN cd /tmp && \
-    git clone https://github.com/Dao-AILab/flash-attention.git && \
-    cd flash-attention && \
-    git checkout v2.6.1 && \
-    MAX_JOBS=4 python setup.py install && \
-    rm -rf  /tmp/* && rm -rf ~/.cache/pip
 
 RUN ldconfig && \
     apt-get clean && \
