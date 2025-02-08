@@ -66,7 +66,12 @@ RUN cd /tmp && \
 
 RUN pip3 install --no-cache-dir tokenizers lmdb biopython ml-collections timeout-decorator urllib3 tree dm-tree && rm -rf ~/.cache/pip 
 
-RUN MAX_JOBS=1 pip3 install -U 'flash-attn==2.7.1.post4' --no-build-isolation --no-cache-dir
+RUN cd /tmp && \
+    git clone https://github.com/Dao-AILab/flash-attention.git && \
+    cd flash-attention && \
+    git checkout v2.6.1 && \
+    MAX_JOBS=4 python setup.py install && \
+    rm -rf  /tmp/* && rm -rf ~/.cache/pip
 
 RUN ldconfig && \
     apt-get clean && \
