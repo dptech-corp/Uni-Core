@@ -23,44 +23,30 @@ struct LNParameters {
 };
 
 template <typename IndexType, typename input_t, typename output_t, typename acc_t, typename Parameters>
-__global__ void layernorm_forward(output_t *dst, const input_t *src, const input_t *gamma, const input_t *beta,
-    acc_t *mean, acc_t *invvar, IndexType bsz, acc_t epsilon) {
+__global__ void rmsnorm_forward(output_t *dst, const input_t *src, const input_t *gamma,
+    acc_t *invvar, IndexType bsz, acc_t epsilon) {
     static_assert(Parameters::WarpsForOneBatchPerBlock == 1, "");
     IndexType batch = blockIdx.x * Parameters::BatchesPerBlock + threadIdx.y;
     if (batch < bsz) {
         src += batch * Parameters::Dim + threadIdx.x * Parameters::VecSize;
         dst += batch * Parameters::Dim + threadIdx.x * Parameters::VecSize;
         gamma += threadIdx.x * Parameters::VecSize;
-        beta += threadIdx.x * Parameters::VecSize;
         using VecInType = VecType<input_t, Parameters::VecSize>;
         VecInType elements[Parameters::Iterations];
         VecInType gamma_reg[Parameters::Iterations];
-        VecInType beta_reg[Parameters::Iterations];
         #pragma unroll
         for (int i = 0; i < Parameters::Iterations; ++i) {
             elements[i] = *(VecInType *)(src + i * Parameters::WarpStride);
             gamma_reg[i] = *(VecInType *)(gamma + i * Parameters::WarpStride);
-            beta_reg[i] = *(VecInType *)(beta + i * Parameters::WarpStride);
         }
         input_t *elements_l = (input_t *)elements;
         input_t *gamma_l = (input_t *)gamma_reg;
-        input_t *beta_l = (input_t *)beta_reg;
         
-        acc_t sum = 0.0;
-        #pragma unroll
-        for (int i = 0; i < Parameters::Iterations * Parameters::VecSize; ++i) {
-            sum += (acc_t)elements_l[i];
-        }
-        #pragma unroll
-        for (int offset = Parameters::WarpSize / 2; offset > 0; offset /= 2) {
-            sum += SHFL_XOR(sum, offset, Parameters::WarpSize);
-        }
-        
-        acc_t mu = sum / Parameters::Dim;
+
         acc_t var = 0.0;
         #pragma unroll
         for (int i = 0; i < Parameters::Iterations * Parameters::VecSize; ++i) {
-            acc_t diff = (acc_t)elements_l[i] - mu;
+            acc_t diff = (acc_t)elements_l[i];
             var += diff * diff;
         }
         #pragma unroll
@@ -71,8 +57,7 @@ __global__ void layernorm_forward(output_t *dst, const input_t *src, const input
         
         #pragma unroll
         for (int i = 0; i < Parameters::Iterations * Parameters::VecSize; ++i) {
-            acc_t t = ((acc_t)elements_l[i] - mu) * rsigma * (acc_t)gamma_l[i] + (acc_t)beta_l[i];
-            elements_l[i] = (input_t)t;
+            elements_l[i] = (input_t)(((acc_t)elements_l[i]) * rsigma * (acc_t)gamma_l[i]);
         }
         
         #pragma unroll
@@ -81,15 +66,14 @@ __global__ void layernorm_forward(output_t *dst, const input_t *src, const input
         }
         
         if (threadIdx.x == 0) {
-            mean[batch] = mu;
             invvar[batch] = rsigma;
         }
     }
 }
 
 template <typename IndexType, typename input_t, typename output_t, typename acc_t, typename Parameters>
-__global__ void layernorm_backward_x(output_t *dst, const input_t *input, const input_t *grad, const input_t *gamma,
-    const acc_t *mean, const acc_t *invvar, IndexType bsz) {
+__global__ void rmsnorm_backward_x(output_t *dst, const input_t *input, const input_t *grad, const input_t *gamma,
+    const acc_t *invvar, IndexType bsz) {
     IndexType batch = blockIdx.x * Parameters::BatchesPerBlock + threadIdx.y;
     if (batch < bsz) {
         input += batch * Parameters::Dim + threadIdx.x * Parameters::VecSize;
@@ -100,46 +84,39 @@ __global__ void layernorm_backward_x(output_t *dst, const input_t *input, const 
         VecInType elements[Parameters::Iterations];
         VecInType grad_reg[Parameters::Iterations];
         VecInType gamma_reg[Parameters::Iterations];
+
         #pragma unroll
         for (int i = 0; i < Parameters::Iterations; ++i) {
             elements[i] = *(VecInType *)(input + i * Parameters::WarpStride);
             grad_reg[i] = *(VecInType *)(grad + i * Parameters::WarpStride);
             gamma_reg[i] = *(VecInType *)(gamma + i * Parameters::WarpStride);
         }
+
         input_t *elements_l = (input_t *)elements;
         input_t *grad_l = (input_t *)grad_reg;
         input_t *gamma_l = (input_t *)gamma_reg;
-        const acc_t mu = mean[batch];
         const acc_t var = invvar[batch];
-        
-        acc_t sum1 = 0.0, sum2 = 0.0;
+
+        acc_t sum1 = 0.0;
         #pragma unroll
         for (int i = 0; i < Parameters::Iterations * Parameters::VecSize; ++i) {
-            elements_l[i] = elements_l[i] - (input_t)mu;
-            acc_t t = (acc_t)grad_l[i] * (acc_t)gamma_l[i];
-            sum1 += (acc_t)elements_l[i] * t;
-            sum2 += t;
+            sum1 += (acc_t)elements_l[i] * (acc_t)grad_l[i] * (acc_t)gamma_l[i];
         }
-        
+
         #pragma unroll
         for (int offset = Parameters::WarpSize / 2; offset > 0; offset /= 2) {
             sum1 += SHFL_XOR(sum1, offset, Parameters::WarpSize);
         }
-        
-        #pragma unroll
-        for (int offset = Parameters::WarpSize / 2; offset > 0; offset /= 2) {
-            sum2 += SHFL_XOR(sum2, offset, Parameters::WarpSize);
-        }
-        
-        sum1 *= var * var * var / Parameters::Dim;
-        sum2 *= var / Parameters::Dim;
-        
+
+        acc_t invDim = 1.0 / Parameters::Dim;
+        sum1 *= (var * var * var) * invDim;
+
         #pragma unroll
         for (int i = 0; i < Parameters::Iterations * Parameters::VecSize; ++i) {
-            acc_t t = (acc_t)grad_l[i] * (acc_t)gamma_l[i] * var - sum1 * (acc_t)elements_l[i] - sum2;
-            elements_l[i] = (input_t)t;
+            acc_t grad = (acc_t)grad_l[i] * (acc_t)gamma_l[i] * var - sum1 * (acc_t)elements_l[i];
+            elements_l[i] = (input_t)grad;
         }
-        
+
         #pragma unroll
         for (int i = 0; i < Parameters::Iterations; ++i) {
             *(VecInType *)(dst + i * Parameters::WarpStride) = elements[i];
@@ -151,10 +128,10 @@ __global__ void layernorm_backward_x(output_t *dst, const input_t *input, const 
 { \
     dim3 threads(32, batches); \
     int blocks = DIV_CELL(n1, batches); \
-    layernorm_forward<size_t, type, type, float, LNParameters<len, vec, batches, 1>> \
+    rmsnorm_forward<size_t, type, type, float, LNParameters<len, vec, batches, 1>> \
     <<<blocks, threads, 0, stream>>> \
     ((type *)output->data_ptr(), (type *)input->data_ptr(), (type *)gamma->data_ptr(), \
-        (type *)beta->data_ptr(), (float *)mean->data_ptr(), (float *)invvar->data_ptr(), n1, epsilon); \
+        (float *)invvar->data_ptr(), n1, epsilon); \
     break; \
 }
 
@@ -162,23 +139,21 @@ __global__ void layernorm_backward_x(output_t *dst, const input_t *input, const 
 { \
     dim3 threads(32, batches); \
     int blocks = DIV_CELL(n1, batches); \
-    layernorm_backward_x<size_t, type, type, float, LNParameters<len, vec, batches, 1>> \
+    rmsnorm_backward_x<size_t, type, type, float, LNParameters<len, vec, batches, 1>> \
     <<<blocks, threads, 0, stream>>> \
     ((type *)grad_input->data_ptr(), (type *)input->data_ptr(), (type *)dout->data_ptr(), \
-        (type *)gamma->data_ptr(), (float *)mean->data_ptr(), (float *)invvar->data_ptr(), n1); \
+        (type *)gamma->data_ptr(), (float *)invvar->data_ptr(), n1); \
     break; \
 }
 
-void cuda_layer_norm(
+void cuda_rms_norm(
     at::Tensor* output,
-    at::Tensor* mean,
     at::Tensor* invvar,
     at::Tensor* input,
     int n1,
     int n2,
     at::IntArrayRef normalized_shape,
     at::Tensor* gamma,
-    at::Tensor* beta,
     double epsilon)
 {
     using namespace at;
@@ -245,16 +220,14 @@ void cuda_layer_norm(
     }
 }
 
-void cuda_layer_norm_gradient(
+void cuda_rms_norm_gradient(
     at::Tensor* dout,
-    at::Tensor* mean,
     at::Tensor* invvar,
     at::Tensor* input,
     int n1,
     int n2,
     at::IntArrayRef normalized_shape,
     at::Tensor* gamma,
-    at::Tensor* beta,
     double epsilon,
     at::Tensor* grad_input)
 {   
