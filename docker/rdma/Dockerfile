@@ -61,7 +61,7 @@ RUN pip3 install --no-cache-dir --upgrade sentry-sdk requests ninja typing packa
 RUN cd /tmp && \
     git clone https://github.com/dptech-corp/Uni-Core && \
     cd Uni-Core && \
-    python setup.py install && \
+    python setup.py install --enable-cuda-ext && \
     rm -rf  /tmp/* && rm -rf ~/.cache/pip
 
 RUN pip3 install --no-cache-dir tokenizers lmdb biopython ml-collections timeout-decorator urllib3 tree dm-tree && rm -rf ~/.cache/pip 
