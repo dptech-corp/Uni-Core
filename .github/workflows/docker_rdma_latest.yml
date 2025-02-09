@@ -4,8 +4,6 @@ on:
   push:
     branches:
     - main
-    - cuda12
-    - torch2407
 
 jobs:
   docker:
