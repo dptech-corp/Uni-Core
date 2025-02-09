@@ -55,8 +55,7 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
 # # pytorch
 # # ------------------------------------------------------------------
 ENV TORCH_CUDA_ARCH_LIST "7.0;7.5;8.0;9.0"
-
-RUN pip3 install --no-cache-dir --upgrade sentry-sdk requests ninja typing packaging && rm -rf ~/.cache/pip
+RUN pip3 install --no-cache-dir --upgrade sentry-sdk requests ninja typing packaging wandb rdkit tokenizers lmdb ml-collections tensorboardX && rm -rf ~/.cache/pip
 
 RUN cd /tmp && \
     git clone https://github.com/dptech-corp/Uni-Core && \
@@ -64,8 +63,7 @@ RUN cd /tmp && \
     python setup.py install --enable-cuda-ext && \
     rm -rf  /tmp/* && rm -rf ~/.cache/pip
 
-RUN pip3 install --no-cache-dir tokenizers lmdb biopython ml-collections timeout-decorator urllib3 tree dm-tree && rm -rf ~/.cache/pip 
-
+RUN pip3 install --no-cache-dir  biopython timeout-decorator urllib3 tree dm-tree && rm -rf ~/.cache/pip 
 
 RUN ldconfig && \
     apt-get clean && \
