@@ -410,12 +410,18 @@ def cli_main(
 ) -> None:
     parser = options.get_training_parser()
     args = options.parse_args_and_arch(parser, modify_parser=modify_parser)
-    if args.profile:
-        with torch.cuda.profiler.profile():
-            with torch.autograd.profiler.emit_nvtx():
-                distributed_utils.call_main(args, main)
-    else:
-        distributed_utils.call_main(args, main)
+    try:
+        if args.profile:
+            with torch.cuda.profiler.profile():
+                with torch.autograd.profiler.emit_nvtx():
+                    distributed_utils.call_main(args, main)
+        else:
+            distributed_utils.call_main(args, main)
+    finally:
+        if torch.distributed.is_initialized():
+            torch.distributed.barrier()
+            time.sleep(1)
+            torch.distributed.destroy_process_group()
 
 
 if __name__ == "__main__":
