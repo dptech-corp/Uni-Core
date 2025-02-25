@@ -61,5 +61,5 @@ jobs:
           file: ./docker/rdma/Dockerfile
           push: true
           tags: |
-            dptechnology/unicore:2407-pytorch2.4.0-cuda12.5-rdma-tmp
-            dp-ve-registry-cn-beijing.cr.volces.com/dplc/unicore:2407-pytorch2.4.0-cuda12.5-rdma-tmp
+            dptechnology/unicore:2407-pytorch2.4.0-cuda12.5-rdma
+            dp-ve-registry-cn-beijing.cr.volces.com/dplc/unicore:2407-pytorch2.4.0-cuda12.5-rdma
