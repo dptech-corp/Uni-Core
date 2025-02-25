@@ -4,7 +4,7 @@ on:
   push:
     branches:
     - main
-    - 2407
+    - 2407_fix
 
 jobs:
   docker:
