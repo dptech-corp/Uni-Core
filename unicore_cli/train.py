@@ -70,7 +70,12 @@ def main(args) -> None:
     assert args.loss, "Please specify loss to train a model"
 
     # Build model and loss
-    model = task.build_model(args)
+    if args.ddp_backend == "fully_sharded":
+        from unicore.distributed import fsdp_enable_wrap, fsdp_wrap
+        with fsdp_enable_wrap(args):
+            model = fsdp_wrap(task.build_model(args))
+    else:
+        model = task.build_model(args)
     loss = task.build_loss(args)
 
     # Load valid dataset (we load training data below, based on the latest checkpoint)
@@ -212,7 +217,6 @@ def train(
     num_updates = trainer.get_num_updates()
     logger.info("Start iterating over samples")
     max_update = args.max_update or math.inf
-
     for i, samples in enumerate(progress):
         with metrics.aggregate("train_inner"), torch.autograd.profiler.record_function(
             "train_step-%d" % i

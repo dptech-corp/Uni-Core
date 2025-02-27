@@ -12,6 +12,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from . import TransformerEncoderLayer, LayerNorm
 
+from unicore.distributed import fsdp_wrap
+
 
 def init_bert_params(module):
     if not getattr(module, 'can_global_init', True):
@@ -80,16 +82,17 @@ class TransformerEncoder(nn.Module):
 
         self.layers = nn.ModuleList(
             [
-                TransformerEncoderLayer(
-                    embed_dim=self.embed_dim,
-                    ffn_embed_dim=ffn_embed_dim,
-                    attention_heads=attention_heads,
-                    dropout=dropout,
-                    attention_dropout=attention_dropout,
-                    activation_dropout=activation_dropout,
-                    activation_fn=activation_fn,
-                    post_ln=post_ln,
-                    
+                fsdp_wrap(
+                    TransformerEncoderLayer(
+                        embed_dim=self.embed_dim,
+                        ffn_embed_dim=ffn_embed_dim,
+                        attention_heads=attention_heads,
+                        dropout=dropout,
+                        attention_dropout=attention_dropout,
+                        activation_dropout=activation_dropout,
+                        activation_fn=activation_fn,
+                        post_ln=post_ln,
+                    )
                 )
                 for _ in range(encoder_layers)
             ]
