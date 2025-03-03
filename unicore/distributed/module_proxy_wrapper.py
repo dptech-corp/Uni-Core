@@ -54,3 +54,9 @@ class ModuleProxyWrapper(nn.Module):
 
     def forward(self, *args, **kwargs):
         return self.module(*args, **kwargs)
+
+    def bfloat16(self):
+        return self.module.module.bfloat16()
+
+    def half(self):
+        return self.module.module.half()
