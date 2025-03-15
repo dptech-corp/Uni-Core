@@ -121,7 +121,7 @@ def distributed_init(args):
             init_method=args.distributed_init_method,
             world_size=args.distributed_world_size,
             rank=args.distributed_rank,
-            timeout=datetime.timedelta(seconds=30),
+            timeout=datetime.timedelta(seconds=90),
         )
         logger.info(
             "initialized host {} as rank {}".format(
