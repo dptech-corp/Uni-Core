@@ -420,8 +420,8 @@ def cli_main(
             distributed_utils.call_main(args, main)
     finally:
         if torch.distributed.is_initialized():
+            time.sleep(10)
             torch.distributed.barrier()
-            time.sleep(1)
             torch.distributed.destroy_process_group()
 
 
