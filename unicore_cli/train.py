@@ -49,6 +49,7 @@ def main(args) -> None:
     ), "Must specify batch size either with --batch-size"
     metrics.reset()
 
+    args.seed += args.dp_rank
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     if torch.cuda.is_available():
