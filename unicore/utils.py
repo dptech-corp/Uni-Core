@@ -439,7 +439,7 @@ def validate_with_ema(trainer, ema=False):
         yield
         return
     _wrapped_model = trainer._wrapped_model
-    trainer._wrapped_model = deepcopy(trainer.ema.model_ema)
+    trainer._wrapped_model = deepcopy(trainer.ema.module)
     if trainer.args.fp16:
         trainer._wrapped_model.half()
     elif trainer.args.bf16:
