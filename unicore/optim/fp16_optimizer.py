@@ -32,6 +32,9 @@ def seperate_decay_params(args, params):
             no_decays.append(param)
         else:
             decays.append(param)
+    if args.weight_decay <= 0.0:
+        no_decays.extend(decays)
+        decays = []
     params = [
         {"params": decays},
         {"params": no_decays, "weight_decay": 0.0},
