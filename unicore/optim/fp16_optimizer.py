@@ -22,7 +22,8 @@ def seperate_decay_params(args, params):
     for name, param in params:
         if not param.requires_grad:
             continue
-        is_decay = False if name.endswith(".bias") else True
+        # bias and 1d params (like weight and bias in norm layers) should not decay
+        is_decay = False if (name.endswith(".bias") or len(param.shape) == 1) else True
         if is_decay:
             for nd in no_weight_decay_names:
                 if nd in name:
