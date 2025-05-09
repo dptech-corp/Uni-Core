@@ -407,7 +407,7 @@ def get_valid_stats(args, trainer: Trainer, stats: Dict[str, Any]) -> Dict[str, 
 
 
 def cli_main(
-    modify_parser: Optional[Callable[[argparse.ArgumentParser], None]] = None
+    modify_parser: Optional[Callable[[argparse.ArgumentParser], None]] = None,
 ) -> None:
     parser = options.get_training_parser()
     args = options.parse_args_and_arch(parser, modify_parser=modify_parser)
@@ -421,7 +421,6 @@ def cli_main(
     finally:
         if torch.distributed.is_initialized():
             torch.distributed.barrier()
-            time.sleep(1)
             torch.distributed.destroy_process_group()
 
 

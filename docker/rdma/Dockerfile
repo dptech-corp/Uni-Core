@@ -1,5 +1,9 @@
 FROM nvcr.io/nvidia/pytorch:24.07-py3
 
+WORKDIR /app
+# copy code to /app
+COPY . /app
+
 RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
     rm -rf /var/lib/apt/lists/* \
            /etc/apt/sources.list.d/cuda.list \
@@ -55,13 +59,11 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
 # # pytorch
 # # ------------------------------------------------------------------
 ENV TORCH_CUDA_ARCH_LIST "7.0;7.5;8.0;9.0"
-RUN pip3 install --no-cache-dir --upgrade sentry-sdk requests ninja typing packaging wandb rdkit tokenizers lmdb ml-collections tensorboardX && rm -rf ~/.cache/pip
+RUN pip3 install --no-cache-dir --upgrade sentry-sdk requests ninja typing packaging wandb rdkit ase tokenizers lmdb ml-collections tensorboardX && rm -rf ~/.cache/pip
 
-RUN cd /tmp && \
-    git clone https://github.com/dptech-corp/Uni-Core && \
-    cd Uni-Core && \
-    python setup.py install --enable-cuda-ext && \
-    rm -rf  /tmp/* && rm -rf ~/.cache/pip
+# install unicore
+RUN python setup.py install --enable-cuda-ext && \
+    rm -rf /app/* && rm -rf ~/.cache/pip
 
 RUN pip3 install --no-cache-dir  biopython timeout-decorator urllib3 tree dm-tree && rm -rf ~/.cache/pip 
 

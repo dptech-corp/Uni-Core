@@ -121,7 +121,7 @@ def distributed_init(args):
             init_method=args.distributed_init_method,
             world_size=args.distributed_world_size,
             rank=args.distributed_rank,
-            timeout=datetime.timedelta(seconds=30),
+            timeout=datetime.timedelta(seconds=90),
         )
         logger.info(
             "initialized host {} as rank {}".format(
@@ -491,7 +491,7 @@ def _broadcast_object_slow(
         buffer = torch.ByteTensor(int(length.item())).to(dist_device)
         broadcast(buffer, src=src_rank, group=group)
         buffer = io.BytesIO(buffer.cpu().numpy())
-        obj = torch.load(buffer, map_location="cpu")
+        obj = torch.load(buffer, map_location="cpu", weights_only=False)
     return obj
 
 

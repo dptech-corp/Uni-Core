@@ -13,6 +13,36 @@ from unicore import utils
 from .dynamic_loss_scaler import DynamicLossScaler
 
 
+def seperate_decay_params(args, params):
+    no_decays = []
+    decays = []
+    no_weight_decay_names = (
+        args.no_weight_decay_names.split(",") if args.no_weight_decay_names else []
+    )
+    for name, param in params:
+        if not param.requires_grad:
+            continue
+        # bias and 1d params (like weight and bias in norm layers) should not decay
+        is_decay = False if (name.endswith(".bias") or len(param.shape) == 1) else True
+        if is_decay:
+            for nd in no_weight_decay_names:
+                if nd in name:
+                    is_decay = False
+                    break
+        if not is_decay:
+            no_decays.append(param)
+        else:
+            decays.append(param)
+    if args.weight_decay <= 0.0:
+        no_decays.extend(decays)
+        decays = []
+    params = [
+        {"params": decays},
+        {"params": no_decays, "weight_decay": 0.0},
+    ]
+    return params
+
+
 def check_param_device(params):
     if len(params) <= 0:
         return True
@@ -22,7 +52,89 @@ def check_param_device(params):
 
 
 def pad_numel(numel, multiplier=2):
-    return (numel + multiplier - 1) //  multiplier * multiplier
+    return (numel + multiplier - 1) // multiplier * multiplier
+
+
+def flatten_orders(params):
+    dtype_grouped_params = {}
+    ordered_dtype = []  # for sort dtype
+    total_param_size = 0
+    for p in params:
+        if p.dtype not in dtype_grouped_params:
+            dtype_grouped_params[p.dtype] = []
+            ordered_dtype.append(p.dtype)
+        dtype_grouped_params[p.dtype].append(p)
+        total_param_size += pad_numel(p.data.numel())
+    return dtype_grouped_params, ordered_dtype, total_param_size
+
+
+@torch.no_grad()
+def flatten_parameters(params):
+    dtype_grouped_params, ordered_dtype, _ = flatten_orders(params)
+
+    flatten_params = {}
+    for dtype in ordered_dtype:
+        cur_params = dtype_grouped_params[dtype]
+        total_param_size = sum(pad_numel(p.data.numel()) for p in cur_params)
+        flatten_params[dtype] = (
+            cur_params[0].new(0).type(dtype).new_zeros(total_param_size)
+        )
+        offset = 0
+        for p in cur_params:
+            numel = p.data.numel()
+            flatten_params[dtype][offset : offset + numel].copy_(p.data.view(-1))
+            p.data = flatten_params[dtype].data[offset : offset + numel].view(*p.shape)
+            offset += pad_numel(numel)
+        flatten_params[dtype] = torch.nn.Parameter(flatten_params[dtype])
+        flatten_params[dtype].grad = flatten_params[dtype].data.new(total_param_size)
+        offset = 0
+        for p in cur_params:
+            numel = p.data.numel()
+            p.grad = flatten_params[dtype].grad[offset : offset + numel].view(*p.shape)
+            offset += pad_numel(numel)
+    torch.cuda.empty_cache()
+    return [flatten_params[dtype] for dtype in ordered_dtype]
+
+
+@torch.no_grad()
+def flatten_parameters_fp32(params, set_to_param=False, set_grad=True):
+    dtype_grouped_params, ordered_dtype, total_param_size = flatten_orders(params)
+
+    flatten_params = torch.zeros(
+        total_param_size, dtype=torch.float32, device=params[0].device
+    )
+    offset = 0
+    for dtype in ordered_dtype:
+        cur_params = dtype_grouped_params[dtype]
+        for p in cur_params:
+            numel = p.data.numel()
+            flatten_params[offset : offset + numel].copy_(p.data.view(-1))
+            if set_to_param:
+                p.data = flatten_params.data[offset : offset + numel].view(*p.shape)
+                # set to None here, it will throw error when using this incorrectly
+                p.grad = None
+            offset += pad_numel(numel)
+    flatten_params = torch.nn.Parameter(flatten_params)
+    if set_grad:
+        flatten_params.grad = torch.zeros_like(flatten_params)
+    torch.cuda.empty_cache()
+    return flatten_params
+
+
+def get_fp16_params(args, params):
+    param_group = seperate_decay_params(args, params)
+    fp16_group = []
+    fp32_group = []
+    for param_dict in param_group:
+        params = param_dict["params"]
+        check_param_device(params)
+        fp16_params = flatten_parameters(params)
+        fp32_params = flatten_parameters_fp32(params)
+        fp16_group.append({"params": fp16_params})
+        param_dict["params"] = [fp32_params]
+        fp32_group.append(param_dict)
+    return fp16_group, fp32_group
+
 
 class _FP16OptimizerMixin(object):
     def __init__(self, args, **kwargs):
@@ -30,59 +142,6 @@ class _FP16OptimizerMixin(object):
         super().__init__(args, **kwargs)
         self._multiply_factor = 1.0
         self.bf16_sr = getattr(args, "bf16_sr", False)
-
-    @classmethod
-    def build_fp32_params(cls, args, params):
-        # create FP32 copy of parameters and grads
-        total_param_size = sum([p.data.numel() for p in params])
-        fp32_params = params[0].new(0).float().new_zeros(total_param_size)
-        offset = 0
-        for p in params:
-            numel = p.data.numel()
-            fp32_params[offset : offset + numel].copy_(p.data.view(-1))
-            offset += numel
-        fp32_params = torch.nn.Parameter(fp32_params)
-        fp32_params.grad = fp32_params.data.new(total_param_size)
-        return fp32_params
-
-    @classmethod
-    def flatten_fp16_parameters(cls, args, params):
-        dtype_grouped_params = {}
-        ordered_dtype = [] # for sort dtype
-        for p in params:
-            if p.dtype not in dtype_grouped_params:
-                dtype_grouped_params[p.dtype] = []
-                ordered_dtype.append(p.dtype)
-            dtype_grouped_params[p.dtype].append(p)
-
-        flatten_params = {}
-        for dtype in dtype_grouped_params:
-            cur_params = dtype_grouped_params[dtype]
-            total_param_size = sum(pad_numel(p.data.numel()) for p in cur_params)
-            flatten_params[dtype] = (
-                cur_params[0].new(0).type(dtype).new_zeros(total_param_size)
-            )
-            offset = 0
-            for p in cur_params:
-                numel = p.data.numel()
-                flatten_params[dtype][offset : offset + numel].copy_(p.data.view(-1))
-                p.data = (
-                    flatten_params[dtype].data[offset : offset + numel].view(*p.shape)
-                )
-                offset += pad_numel(numel)
-            flatten_params[dtype] = torch.nn.Parameter(flatten_params[dtype])
-            flatten_params[dtype].grad = flatten_params[dtype].data.new(
-                total_param_size
-            )
-            offset = 0
-            for p in cur_params:
-                numel = p.data.numel()
-                p.grad = (
-                    flatten_params[dtype].grad[offset : offset + numel].view(*p.shape)
-                )
-                offset += pad_numel(numel)
-        torch.cuda.empty_cache()
-        return [flatten_params[dtype] for dtype in ordered_dtype]
 
     def state_dict(self):
         """Return the optimizer's state dict."""
@@ -116,38 +175,45 @@ class _FP16OptimizerMixin(object):
     def _sync_fp16_grads_to_fp32(self):
         with torch.no_grad():
             if self._needs_sync:
-                offset = 0
-                for p in self.fp16_params:
-                    numel = p.numel()
-                    self.fp32_params.grad.data[offset : offset + numel].copy_(
-                        p.grad.data.view(-1)
-                    )
-                    offset += pad_numel(numel)
-                self._needs_sync = False
+                for gid in range(len(self.fp16_params)):
+                    offset = 0
+                    for p in self.fp16_params[gid]["params"]:
+                        numel = p.numel()
+                        self.fp32_params[gid]["params"][0].grad.data[
+                            offset : offset + numel
+                        ].copy_(p.grad.data.view(-1))
+                        offset += pad_numel(numel)
+                    self._needs_sync = False
 
     def _add_fp16_grads_to_fp32(self, mul=0.0):
         with torch.no_grad():
-            offset = 0
-            for p in self.fp16_params:
-                numel = p.numel()
-                self.fp32_params.grad.data[
-                    offset : offset + numel
-                ] += mul * p.grad.data.float().view(-1)
-                p.grad.zero_()
-                offset += pad_numel(numel)
-            self._needs_sync = False
+            for gid in range(len(self.fp16_params)):
+                offset = 0
+                for p in self.fp16_params[gid]["params"]:
+                    numel = p.numel()
+                    self.fp32_params[gid]["params"][0].grad.data[
+                        offset : offset + numel
+                    ] += mul * p.grad.data.float().view(-1)
+                    p.grad.zero_()
+                    offset += pad_numel(numel)
+                self._needs_sync = False
 
     def _sync_fp32_params_to_fp16(self):
         # copy FP32 params back into FP16 model
-        offset = 0
-        for p in self.fp16_params:
-            numel = p.numel()
-            u = self.fp32_params.data[offset : offset + numel].view_as(p.data)
-            if self.bf16_sr and p.dtype == torch.bfloat16:
-                utils.fp32_to_bf16_sr(u, p)
-            else:
-                p.data.copy_(u)
-            offset += pad_numel(numel)
+        for gid in range(len(self.fp16_params)):
+            offset = 0
+            for p in self.fp16_params[gid]["params"]:
+                numel = p.numel()
+                u = (
+                    self.fp32_params[gid]["params"][0]
+                    .data[offset : offset + numel]
+                    .view_as(p.data)
+                )
+                if self.bf16_sr and p.dtype == torch.bfloat16:
+                    utils.fp32_to_bf16_sr(u, p)
+                else:
+                    p.data.copy_(u)
+                offset += pad_numel(numel)
 
     def _unscale_grads(self):
         self._sync_fp16_grads_to_fp32()
@@ -176,8 +242,11 @@ class _FP16OptimizerMixin(object):
         """Clips gradient norm."""
         if max_norm <= 0.0:
             return 0.0
+        all_fp16_params = defaultdict(list)
+        for p in self.fp16_params:
+            all_fp16_params.extend(p["params"])
         grad_norm = self._multiply_factor * utils.clip_grad_norm_(
-            self.fp16_params, 0, aggregate_norm_fn
+            all_fp16_params, 0, aggregate_norm_fn
         )
         # grad_norm = 1.0
         if grad_norm > max_norm > 0.0:
@@ -223,15 +292,14 @@ class _FP16OptimizerMixin(object):
 
     def zero_grad(self):
         """Clears the gradients of all optimized parameters."""
-        for p in self.fp16_params:
-            p.grad.zero_()
-        if torch.is_tensor(self.fp32_params):
-            self.fp32_params.grad.zero_()
-        elif isinstance(self.fp32_params, dict):
-            for fp32_params in self.fp32_params.values():
-                fp32_params.grad.zero_()
-        else:
-            raise RuntimeError("self.fp32_params must be a tensor or dict")
+
+        def zero(group):
+            for x in group:
+                for p in x["params"]:
+                    p.grad.zero_()
+
+        zero(self.fp16_params)
+        zero(self.fp32_params)
         self._needs_sync = False
 
         if self.scaler is not None:
@@ -284,11 +352,9 @@ class FP16Optimizer(_FP16OptimizerMixin, optim.UnicoreOptimizer):
         """
         flatten = not getattr(args, "fp16_no_flatten_grads", False)
         assert flatten
-        check_param_device(params)
-        params = cls.flatten_fp16_parameters(args, params)
-        fp32_params = cls.build_fp32_params(args, params)
-        fp32_optimizer = optim.build_optimizer(args, [fp32_params])
-        return cls(args, params, fp32_optimizer, fp32_params, **kwargs)
+        fp16_group, fp32_group = get_fp16_params(args, params)
+        fp32_optimizer = optim.build_optimizer(args, fp32_group, seperate=False)
+        return cls(args, fp16_group, fp32_optimizer, fp32_group, **kwargs)
 
     @property
     def optimizer(self):
@@ -316,7 +382,7 @@ class FP16Optimizer(_FP16OptimizerMixin, optim.UnicoreOptimizer):
         if self.allreduce_fp32_grad and hasattr(module, "all_reduce_params"):
             self._sync_fp16_grads_to_fp32()
             with torch.no_grad():
-                params = [self.fp32_params]
+                params = [x["params"][0] for x in self.fp32_params]
                 module.all_reduce_params(params)
         else:
             self.fp32_optimizer.all_reduce_grads(module)

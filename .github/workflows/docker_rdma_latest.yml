@@ -56,8 +56,9 @@ jobs:
         name: Build and push with rdma
         uses: docker/build-push-action@v6
         with:
-          context: ./docker/rdma/
+          context: .
+          file: ./docker/rdma/Dockerfile
           push: true
           tags: |
-            dptechnology/unicore:latest-2407-pytorch2.4.0-cuda12.5-rdma
-            dp-ve-registry-cn-beijing.cr.volces.com/dplc/unicore:latest-2407-pytorch2.4.0-cuda12.5-rdma
+            dptechnology/unicore:2407-pytorch2.4.0-cuda12.5-rdma-latest
+            dp-ve-registry-cn-beijing.cr.volces.com/dplc/unicore:2407-pytorch2.4.0-cuda12.5-rdma-latest

@@ -1,56 +1,53 @@
 from copy import deepcopy
-from itertools import chain
-from unicore.optim.fp16_optimizer import pad_numel
+from unicore.optim.fp16_optimizer import seperate_decay_params, flatten_parameters_fp32
 import torch
 
 
 class ExponentialMovingAverageModel:
-    def __init__(self, model, decay, init_param=None):
-        self.model_ema = deepcopy(model).float()
+    def __init__(self, args, model, decay, is_flattened=False):
+        self.args = args
+        self.model_ema = deepcopy(model)
         self.decay = decay
-        self.name2param, self.param = self.flatten_parameters(model, init_param)
+        self.is_flattened = is_flattened
+        if not is_flattened:
+            self.name2param = self.get_name2param()
+        else:
+            self.flatten_params = self.flatten_parameters()
 
-    def flatten_parameters(self, model, init_param):
-        # get ordered name
-        dtype_grouped_names = dict()
-        ordered_dtype = []
-        for n, p in model.named_parameters():
-            if p.requires_grad:
-                if p.dtype not in dtype_grouped_names:
-                    dtype_grouped_names[p.dtype] = []
-                    ordered_dtype.append(p.dtype)
-                dtype_grouped_names[p.dtype].append(n)
-
-        ordered_names = list(chain(*(dtype_grouped_names[n] for n in ordered_dtype)))
-
+    def get_name2param(self):
         name2param = dict()
         for n, p in self.model_ema.named_parameters():
             name2param[n] = p
-        cur_params = [name2param[n] for n in ordered_names]
-        total_param_size = sum(pad_numel(p.data.numel()) for p in cur_params)
-        flatten_param = cur_params[0].new(0).float().new_zeros(total_param_size)
+            # use float type for ema
+            p.data = p.data.float()
+            p.grad = None
+        return name2param
 
-        offset = 0
-        for p in cur_params:
-            numel = p.data.numel()
-            flatten_param[offset : offset + numel].copy_(p.data.view(-1))
-            p.data = flatten_param.data[offset : offset + numel].view(*p.shape)
-            offset += pad_numel(numel)
-        flatten_param = torch.nn.Parameter(flatten_param)
-        if init_param is not None:
-            assert torch.allclose(init_param, flatten_param), "ema init error!"
-        torch.cuda.empty_cache()
-        return name2param, flatten_param
+    def flatten_parameters(self):
+        param_group = seperate_decay_params(
+            self.args, self.model_ema.named_parameters()
+        )
+        flatten_group = []
+        for param_dict in param_group:
+            params = param_dict["params"]
+            flatten_param = flatten_parameters_fp32(
+                params, set_to_param=True, set_grad=False
+            )
+            flatten_group.append(flatten_param)
+        return flatten_group
 
     def update_one_param(self, ema_param, new_param):
         diff = ema_param - new_param
         diff *= 1 - self.decay
         ema_param -= diff
 
-    def update(self, new_param, is_flattened):
-        if is_flattened:
+    def update(self, new_param):
+        if self.is_flattened:
             with torch.no_grad():
-                self.update_one_param(self.param, new_param)
+                for i in range(len(self.flatten_params)):
+                    self.update_one_param(
+                        self.flatten_params[i], new_param[i]["params"][0]
+                    )
         else:
             with torch.no_grad():
                 for n, p in new_param:
