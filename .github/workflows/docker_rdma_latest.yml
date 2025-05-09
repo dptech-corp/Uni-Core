@@ -4,8 +4,6 @@ on:
   push:
     branches:
     - main
-    - 2407_fix
-    - 2407_fix_wd
 
 jobs:
   docker:
@@ -62,5 +60,5 @@ jobs:
           file: ./docker/rdma/Dockerfile
           push: true
           tags: |
-            dptechnology/unicore:2407-pytorch2.4.0-cuda12.5-rdma-fix
-            dp-ve-registry-cn-beijing.cr.volces.com/dplc/unicore:2407-pytorch2.4.0-cuda12.5-rdma-fix
+            dptechnology/unicore:2407-pytorch2.4.0-cuda12.5-rdma-latest
+            dp-ve-registry-cn-beijing.cr.volces.com/dplc/unicore:2407-pytorch2.4.0-cuda12.5-rdma-latest
