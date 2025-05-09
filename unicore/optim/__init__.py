@@ -12,24 +12,21 @@ from unicore import registry
 from unicore.optim.unicore_optimizer import (  # noqa
     UnicoreOptimizer,
 )
-from unicore.optim.fp16_optimizer import FP16Optimizer
+from unicore.optim.fp16_optimizer import FP16Optimizer, seperate_decay_params
 
 __all__ = [
     "UnicoreOptimizer",
     "FP16Optimizer",
 ]
 
-(
-    _build_optimizer,
-    register_optimizer,
-    OPTIMIZER_REGISTRY
-) = registry.setup_registry("--optimizer", base_class=UnicoreOptimizer, default='adam')
+(_build_optimizer, register_optimizer, OPTIMIZER_REGISTRY) = registry.setup_registry(
+    "--optimizer", base_class=UnicoreOptimizer, default="adam"
+)
 
 
-def build_optimizer(args, params, *extra_args, **extra_kwargs):
-    if all(isinstance(p, dict) for p in params):
-        params = [t for p in params for t in p.values()]
-    params = list(filter(lambda p: p.requires_grad, params))
+def build_optimizer(args, params, seperate=True, *extra_args, **extra_kwargs):
+    if seperate:
+        params = seperate_decay_params(args, params)
     return _build_optimizer(args, params, *extra_args, **extra_kwargs)
 
 

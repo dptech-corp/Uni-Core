@@ -120,8 +120,10 @@ class Trainer(object):
             self.data_parallel_rank == 0 or args.validate_with_ema
         ):
             self.ema = ExponentialMovingAverageModel(
+                args,
                 model,
                 args.ema_decay,
+                is_flattened=(args.fp16 or args.bf16),
             )
 
         else:
@@ -216,12 +218,14 @@ class Trainer(object):
         return self._lr_scheduler
 
     def _build_optimizer(self):
-        params = list(
-            filter(
-                lambda p: p.requires_grad,
-                chain(self.model.parameters(), self.loss.parameters()),
+        params = [
+            (name, param)
+            for name, param in chain(
+                self.model.named_parameters(),
+                self.loss.named_parameters(),
             )
-        )
+            if param.requires_grad
+        ]
         if self.args.per_sample_clip_norm > 0:
             assert self.args.ddp_backend == "no_c10d"
             assert self.args.batch_size == 1
@@ -394,9 +398,12 @@ class Trainer(object):
                     f"Cannot find EMA state in checkpoint, load model weight to ema directly"
                 )
                 self.ema = ExponentialMovingAverageModel(
-                    self._model, decay=self.ema.decay
+                    self.args,
+                    self._model,
+                    decay=self.ema.decay,
+                    is_flattened=(self.args.fp16 or self.args.bf16),
                 )
-        
+
         loaded_train_itr = False
         if extra_state is not None:
             itr_state = extra_state["train_iterator"]
@@ -713,9 +720,9 @@ class Trainer(object):
             if self.ema is not None:
                 with torch.autograd.profiler.record_function("ema"):
                     if self.args.fp16 or self.args.bf16:
-                        self.ema.update(self.optimizer.fp32_params, is_flattened=True)
+                        self.ema.update(self.optimizer.fp32_params)
                     else:
-                        self.ema.update(self.model.named_parameters(), is_flattened=False)
+                        self.ema.update(self.model.named_parameters())
 
         except FloatingPointError:
             # re-run the forward and backward pass with hooks attached to print
