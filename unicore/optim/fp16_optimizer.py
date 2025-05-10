@@ -13,34 +13,34 @@ from unicore import utils
 from .dynamic_loss_scaler import DynamicLossScaler
 
 
-def seperate_decay_params(args, params):
-    no_decays = []
-    decays = []
-    no_weight_decay_names = (
-        args.no_weight_decay_names.split(",") if args.no_weight_decay_names else []
+def separate_decay_params(args, params):
+    if args.weight_decay <= 0:
+        return [{"params": [p for _, p in params if p.requires_grad]}]
+
+    no_wd = (
+        set(args.no_weight_decay_names.split(","))
+        if args.no_weight_decay_names
+        else set()
     )
-    for name, param in params:
-        if not param.requires_grad:
+
+    def skip_decay(name, p):
+        return name.endswith(".bias") or p.ndim == 1 or any(nd in name for nd in no_wd)
+
+    decay_params = []
+    no_decay_params = []
+    for name, p in params:
+        if not p.requires_grad:
             continue
-        # bias and 1d params (like weight and bias in norm layers) should not decay
-        is_decay = False if (name.endswith(".bias") or len(param.shape) == 1) else True
-        if is_decay:
-            for nd in no_weight_decay_names:
-                if nd in name:
-                    is_decay = False
-                    break
-        if not is_decay:
-            no_decays.append(param)
+        elif skip_decay(name, p):
+            no_decay_params.append(p)
         else:
-            decays.append(param)
-    if args.weight_decay <= 0.0:
-        no_decays.extend(decays)
-        decays = []
-    params = [
-        {"params": decays},
-        {"params": no_decays, "weight_decay": 0.0},
-    ]
-    return params
+            decay_params.append(p)
+    ret = []
+    if len(decay_params) > 0:
+        ret.append({"params": decay_params})
+    if len(no_decay_params) > 0:
+        ret.append({"params": no_decay_params, "weight_decay": 0.0})
+    return ret
 
 
 def check_param_device(params):
@@ -122,7 +122,7 @@ def flatten_parameters_fp32(params, set_to_param=False, set_grad=True):
 
 
 def get_fp16_params(args, params):
-    param_group = seperate_decay_params(args, params)
+    param_group = separate_decay_params(args, params)
     fp16_group = []
     fp32_group = []
     for param_dict in param_group:
@@ -353,7 +353,7 @@ class FP16Optimizer(_FP16OptimizerMixin, optim.UnicoreOptimizer):
         flatten = not getattr(args, "fp16_no_flatten_grads", False)
         assert flatten
         fp16_group, fp32_group = get_fp16_params(args, params)
-        fp32_optimizer = optim.build_optimizer(args, fp32_group, seperate=False)
+        fp32_optimizer = optim.build_optimizer(args, fp32_group, separate=False)
         return cls(args, fp16_group, fp32_optimizer, fp32_group, **kwargs)
 
     @property

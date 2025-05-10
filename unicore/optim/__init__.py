@@ -12,7 +12,7 @@ from unicore import registry
 from unicore.optim.unicore_optimizer import (  # noqa
     UnicoreOptimizer,
 )
-from unicore.optim.fp16_optimizer import FP16Optimizer, seperate_decay_params
+from unicore.optim.fp16_optimizer import FP16Optimizer, separate_decay_params
 
 __all__ = [
     "UnicoreOptimizer",
@@ -24,9 +24,9 @@ __all__ = [
 )
 
 
-def build_optimizer(args, params, seperate=True, *extra_args, **extra_kwargs):
-    if seperate:
-        params = seperate_decay_params(args, params)
+def build_optimizer(args, params, separate=True, *extra_args, **extra_kwargs):
+    if separate:
+        params = separate_decay_params(args, params)
     return _build_optimizer(args, params, *extra_args, **extra_kwargs)
 
 

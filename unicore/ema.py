@@ -1,5 +1,5 @@
 from copy import deepcopy
-from unicore.optim.fp16_optimizer import seperate_decay_params, flatten_parameters_fp32
+from unicore.optim.fp16_optimizer import separate_decay_params, flatten_parameters_fp32
 import torch
 
 
@@ -24,7 +24,7 @@ class ExponentialMovingAverageModel:
         return name2param
 
     def flatten_parameters(self):
-        param_group = seperate_decay_params(
+        param_group = separate_decay_params(
             self.args, self.model_ema.named_parameters()
         )
         flatten_group = []
