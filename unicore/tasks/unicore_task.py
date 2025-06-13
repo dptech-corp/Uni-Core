@@ -261,7 +261,7 @@ class UnicoreTask(object):
             sample (dict): the mini-batch. The format is defined by the
                 :class:`~unicore.data.UnicoreDataset`.
             model (~unicore.models.BaseUnicoreModel): the model
-            loss (~unicore.losses.UnicoreLoss): the loss
+            loss (~unicore.losses.UnicoreLoss): the loss function
             optimizer (~unicore.optim.UnicoreOptimizer): the optimizer
             update_num (int): the current update
             ignore_grad (bool): multiply loss by 0 if this is set to True
@@ -276,12 +276,13 @@ class UnicoreTask(object):
         model.train()
         model.set_num_updates(update_num)
         with torch.autograd.profiler.record_function("forward"):
-            loss, sample_size, logging_output = loss(model, sample)
+            loss_val, sample_size, logging_output = loss(model, sample)
+
         if ignore_grad:
-            loss *= 0
+            loss_val *= 0
         with torch.autograd.profiler.record_function("backward"):
-            optimizer.backward(loss)
-        return loss, sample_size, logging_output
+            optimizer.backward(loss_val)
+        return loss_val, sample_size, logging_output
 
     def valid_step(self, sample, model, loss, test=False):
         model.eval()

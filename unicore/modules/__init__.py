@@ -1,5 +1,6 @@
 """isort:skip_file"""
 
+from .common import Linear, Embedding
 from .layer_norm import LayerNorm
 from .rms_norm import RMSNorm
 from .softmax_dropout import softmax_dropout
