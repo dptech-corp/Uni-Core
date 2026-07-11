@@ -2,22 +2,59 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
+import importlib
+import logging
+
 import torch
 import torch.nn.functional as F
 
-try:
-    import unicore_fused_softmax_dropout
-    HAS_SOFTMAX = True
-except:
-    print("fused_softmax is not installed corrected")
-    HAS_SOFTMAX = False
+logger = logging.getLogger(__name__)
 
-if not torch.cuda.is_available() or torch.cuda.get_device_capability()[0] < 7:
-    HAS_SOFTMAX = False
+# ---------------------------------------------------------------------------
+# CUDA fused-kernel probe cache (expert 8.2).
+# Upstream checks once at module import. We check lazily but cache the result
+# so the CUDA hot path does not pay an import+capability probe on every call.
+_CUDA_FUSED_CACHE: dict = {}  # device_id -> bool
+
+
+def _cuda_fused_available():
+    """Return True iff the CUDA fused softmax_dropout C++ extension is loadable
+    and the current CUDA device supports it (compute capability >= 7).
+
+    Moved out of module top-level so that CPU-only environments do not emit
+    a spurious ``print`` at import time. Called lazily from ``softmax_dropout``.
+
+    Cached per device to avoid repeating the extension import and capability
+    query on every call (expert 8.2). Only ``ImportError`` and
+    ``RuntimeError`` (device capability query failure) are caught — these are
+    the expected "not available" signals. Any other exception propagates.
+    """
+    if not torch.cuda.is_available():
+        return False
+    try:
+        device_id = torch.cuda.current_device()
+    except (RuntimeError, AssertionError):
+        # No CUDA device initialized (e.g. torch built without CUDA).
+        return False
+    if device_id in _CUDA_FUSED_CACHE:
+        return _CUDA_FUSED_CACHE[device_id]
+    available = False
+    try:
+        importlib.import_module("unicore_fused_softmax_dropout")
+        available = torch.cuda.get_device_capability(device_id)[0] >= 7
+    except ImportError:
+        available = False
+    except (RuntimeError, AssertionError):
+        # Device capability query failed — treat as unavailable, do not crash.
+        available = False
+    _CUDA_FUSED_CACHE[device_id] = available
+    return available
 
 class SoftmaxDropoutFast(torch.autograd.Function):
     @staticmethod
     def forward(ctx, is_training, inputs, mask, bias, dropout_prob):
+        import unicore_fused_softmax_dropout
+
         (
             dropout_results,
             dropout_mask,
@@ -35,6 +72,8 @@ class SoftmaxDropoutFast(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output):
+        import unicore_fused_softmax_dropout
+
         softmax_results, dropout_mask = ctx.saved_tensors
         dropout_prob = ctx.dropout_prob
         grad_output = grad_output.contiguous()
@@ -182,7 +221,7 @@ def softmax_dropout(input, dropout_prob, is_training=True, mask=None, bias=None,
         torch.Tensor: the result after softmax
     """
     input = _prepare_input(input, inplace)
-    if input.is_cuda and HAS_SOFTMAX:
+    if input.is_cuda and _cuda_fused_available():
         input_size = input.size()
         if mask is not None:
             if _check_mask(mask, input):
