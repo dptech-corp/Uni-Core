@@ -97,6 +97,66 @@ def _check_bias(bias, input):
         return False
 
 
+def _prepare_input(input, inplace):
+    """Make input contiguous and (if not inplace) clone it.
+
+    This is the *single* place input preprocessing happens — extracted to
+    preserve upstream's single-preprocessing semantics. The public
+    ``softmax_dropout`` calls this once; the reference helper and all
+    backend fast paths receive already-prepared input and must NOT repeat
+    contiguous/clone.
+    """
+    x = input.contiguous()
+    if not inplace:
+        x = x.clone()
+    return x
+
+
+def _softmax_dropout_reference_prepared(
+    x, dropout_prob, is_training=True, mask=None, bias=None, inplace=True,
+):
+    """Generic PyTorch softmax + dropout + additive mask/bias.
+
+    ``x`` must already be prepared by ``_prepare_input`` (contiguous, and
+    cloned if ``inplace=False``). This function does NOT repeat that work.
+
+    Since ``x`` is already a safe copy (cloned by ``_prepare_input`` when
+    ``inplace=False``), mask/bias are applied in-place via ``add_`` to
+    avoid extra tensor allocations. This matches upstream's allocation
+    semantics: the caller's input is never modified, and no intermediate
+    tensors are created for mask/bias addition.
+
+    This is the exact computation that upstream's ``else`` branch performs:
+    ``input += mask; input += bias; F.dropout(F.softmax(input, -1), ...)``.
+    """
+    if mask is not None:
+        x.add_(mask)
+    if bias is not None:
+        x.add_(bias)
+    return F.dropout(F.softmax(x, dim=-1), p=dropout_prob, training=is_training)
+
+
+def _softmax_dropout_reference(
+    input,
+    dropout_prob,
+    is_training=True,
+    mask=None,
+    bias=None,
+    inplace=True,
+):
+    """Generic PyTorch softmax + dropout + additive mask/bias.
+
+    Convenience wrapper: prepares input then delegates to
+    ``_softmax_dropout_reference_prepared``. Kept for backwards
+    compatibility with existing tests that call the reference helper
+    directly with a raw (un-prepared) tensor.
+    """
+    x = _prepare_input(input, inplace)
+    return _softmax_dropout_reference_prepared(
+        x, dropout_prob, is_training, mask, bias, inplace
+    )
+
+
 def softmax_dropout(input, dropout_prob, is_training=True, mask=None, bias=None, inplace=True):
     """softmax dropout, and mask, bias are optional.
     Args:
@@ -109,10 +169,7 @@ def softmax_dropout(input, dropout_prob, is_training=True, mask=None, bias=None,
     Returns:
         torch.Tensor: the result after softmax
     """
-    input = input.contiguous()
-    if not inplace:
-        # copy a input for non-inplace case
-        input = input.clone()
+    input = _prepare_input(input, inplace)
     if input.is_cuda and HAS_SOFTMAX:
         input_size = input.size()
         if mask is not None:
@@ -137,8 +194,6 @@ def softmax_dropout(input, dropout_prob, is_training=True, mask=None, bias=None,
                 is_training, input, mask, bias, 0.0
             ).view(*input_size), p=dropout_prob, training=is_training)
     else:
-        if mask is not None:
-            input += mask
-        if bias is not None:
-            input += bias
-        return F.dropout(F.softmax(input, dim=-1), p=dropout_prob, training=is_training)
+        return _softmax_dropout_reference_prepared(
+            input, dropout_prob, is_training, mask, bias, inplace
+        )
