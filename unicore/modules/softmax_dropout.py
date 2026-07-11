@@ -51,50 +51,62 @@ class SoftmaxDropoutFast(torch.autograd.Function):
 
 
 def _check_mask(mask, input):
-    try:
-        assert mask.dtype == input.dtype, "mask and input must have the same dtype"
-        assert len(mask.shape) == len(input.shape), "wrong length of mask.shape"
-        assert (
-            mask.shape[-3] == 1 or mask.shape[-3] == input.shape[-3]
-        ), "mask.shape[-3] must be 1 or input.shape[-3]"
-        if mask.shape[-3] == 1:
-            assert mask.shape[-2] == 1, "when mask.shape[-3] == 1, mask.shape[-2] must be 1"
-        else:
-            assert (
-                mask.shape[-2] == 1 or mask.shape[-2] == input.shape[-2]
-            ), "mask.shape[-2] must be 1 or input.shape[-2]"
-        return True
-    except:
+    """Validate that mask is compatible with the CUDA fused kernel.
+
+    Uses explicit shape checks instead of try/except (expert 8.1): the old
+    version accessed ``mask.shape[-3]`` inside a bare ``except`` which could
+    raise ``IndexError`` on low-rank inputs (rank < 3) and crash instead of
+    falling back. Now returns False cleanly for any incompatible shape.
+    """
+    if mask.dtype != input.dtype:
         return False
+    if mask.ndim != input.ndim:
+        return False
+    if mask.ndim < 3:
+        return False
+    if mask.shape[-3] != 1 and mask.shape[-3] != input.shape[-3]:
+        return False
+    if mask.shape[-3] == 1:
+        if mask.shape[-2] != 1:
+            return False
+    else:
+        if mask.shape[-2] != 1 and mask.shape[-2] != input.shape[-2]:
+            return False
+    return True
 
 
 def _check_bias(bias, input):
-    try:
-        assert bias.dtype == input.dtype, "bias and input must have the same dtype"
-        assert len(bias.shape) == len(input.shape), "wrong length of bias.shape"
-        assert bias.shape[-1] == input.shape[-1], "bias.shape[-1] must be input.shape[-1]"
-        assert bias.shape[-2] == input.shape[-2], "bias.shape[-2] must be input.shape[-2]"
-        len_shape = len(input.shape)
-        if len_shape > 3:
-            # head dim should be the same
-            assert (
-                bias.shape[-3] == input.shape[-3]
-            ), "bias.shape[-3] must be input.shape[-3]"
-            offset = 3
-        else:
-            offset = 2
-        prev_non_one = True
-        for i in range(len_shape - offset - 1, -1, -1):
-            if prev_non_one:
-                assert (
-                    bias.shape[i] == input.shape[i] or bias.shape[i] == 1
-                ), "bias.shape[{}] must be input.shape[{}] or 1".format(i, i)
-            else:
-                assert bias.shape[i] == 1, "bias.shape[{}] must be 1".format(i)
-            prev_non_one = bias.shape[i] != 1
-        return True
-    except:
+    """Validate that bias is compatible with the CUDA fused kernel.
+
+    Uses explicit shape checks instead of try/except (expert 8.1).
+    """
+    if bias.dtype != input.dtype:
         return False
+    if bias.ndim != input.ndim:
+        return False
+    if bias.ndim < 2:
+        return False
+    if bias.shape[-1] != input.shape[-1]:
+        return False
+    if bias.shape[-2] != input.shape[-2]:
+        return False
+    len_shape = input.ndim
+    if len_shape > 3:
+        if bias.shape[-3] != input.shape[-3]:
+            return False
+        offset = 3
+    else:
+        offset = 2
+    prev_non_one = True
+    for i in range(len_shape - offset - 1, -1, -1):
+        if prev_non_one:
+            if bias.shape[i] != input.shape[i] and bias.shape[i] != 1:
+                return False
+        else:
+            if bias.shape[i] != 1:
+                return False
+        prev_non_one = bias.shape[i] != 1
+    return True
 
 
 def _prepare_input(input, inplace):
